@@ -5,7 +5,7 @@
 all: oed
 
 oed:
-	ocamlcore oed.byte
+	corebuild oed.byte
 
 clean:
-	ocamlcore -clean
+	corebuild -clean
