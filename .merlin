@@ -3,7 +3,7 @@ S test/
 B _build/
 B test/_build/
 
-PKG re
+PKG core
 
 # ounit files and custom syntax files
 PKG pa_ounit

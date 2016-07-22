@@ -1,3 +1,5 @@
+open Core.Std
+
 let rec get_address str =
   failwith "fail"
 ;;

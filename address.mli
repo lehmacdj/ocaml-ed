@@ -1,6 +1,7 @@
 (*
  * The interface for an address
  *)
+open Core.Std
 
 (**
  * The type of the address. This represents a range of lines that a given
