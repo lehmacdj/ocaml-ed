@@ -1,6 +1,7 @@
 (*
  * This file is the entry point for oed and the main file for building the
- * binary.
+ * binary. It parses the command line arguments and begins the main loop of the
+ * program.
  *)
 
 let version = "0.0.1"
