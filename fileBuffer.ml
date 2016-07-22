@@ -3,7 +3,7 @@
  *)
 open Core.Std
 
-(* 
+(**
  * The name of the file (optional) and a list of all of the lines in the file.
  *)
 type t = string option * string list
@@ -21,4 +21,7 @@ let make = function
           failwith "no support for unknown file existence"
 
 let get x =
+  failwith "not implemented"
+
+let write () =
   failwith "not implemented"
