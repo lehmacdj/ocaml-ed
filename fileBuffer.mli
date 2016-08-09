@@ -17,9 +17,9 @@ val make: string option -> t
  * Returns the line of text given by the line number. Returns None if that line
  * is out of range for the buffer.
  *)
-val get: int -> string option
+val get: t -> int -> string option
 
 (**
  * Writes the file to the filesytem.
  *)
-val write: unit -> unit
+val write: t -> unit

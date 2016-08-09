@@ -14,14 +14,22 @@ let make = function
       (* Read the file and load it into the buffer *)
       match Sys.file_exists name with
       | `Yes ->
-          failwith "no support for reading files yet"
+          let file = In_channel.create name in
+          let text = protect ~f:(fun () ->
+              In_channel.input_lines file)
+            ~finally:(fun () -> In_channel.close file) in
+          (Some name, text)
       | `No ->
-          (Some name, []) 
+          (Some name, [])
       | `Unknown ->
-          failwith "no support for unknown file existence"
+          failwith @@ "File " ^ name ^ "is at an unknown location"
 
-let get x =
-  failwith "not implemented"
+let get (_, text) line =
+  List.nth text line
 
-let write () =
-  failwith "not implemented"
+let write (name, text) =
+  match name with
+  | None ->
+      failwith "filename is undefined"
+  | Some name ->
+      Out_channel.write_lines name text
