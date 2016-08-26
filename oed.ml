@@ -5,4 +5,4 @@
  * Currently no command line parsing is supported.
  *)
 
-Main.run @@ FileBuffer.make None
+Main.run ""

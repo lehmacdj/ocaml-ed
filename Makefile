@@ -2,10 +2,13 @@
 # Makefile for oed
 #
 
+CC=corebuild
+CFLAGS=-package re2 -package async
+
 all: oed
 
 oed:
-	corebuild oed.byte
+	$(CC) $(CFLAGS) oed.byte
 
 clean:
-	corebuild -clean
+	$(CC) -clean

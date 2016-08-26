@@ -23,3 +23,8 @@ val get: t -> int -> string option
  * Writes the file to the filesytem.
  *)
 val write: t -> unit
+
+(**
+ * Returns the next line of text that after or before the current line marker.
+ *)
+val find: t -> ?direction([< `Forward | `Backward]) -> string -> int

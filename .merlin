@@ -5,6 +5,7 @@ B test/_build/
 
 PKG core
 PKG re2
+PKG async
 
 # ounit files and custom syntax files
 PKG pa_ounit

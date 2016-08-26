@@ -24,12 +24,15 @@ let make = function
       | `Unknown ->
           failwith @@ "File " ^ name ^ "is at an unknown location"
 
-let get (_, text) line =
+let get (_, text, _) line =
   List.nth text line
 
-let write (name, text) =
+let write (name, text, _) =
   match name with
   | None ->
       failwith "filename is undefined"
   | Some name ->
       Out_channel.write_lines name text
+
+let find buffer ?(direction = `Forward) =
+  failwith "unimplemented"
