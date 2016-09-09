@@ -41,8 +41,9 @@ let make name =
 (**
  * Prints the output of an array.
  *)
-let print_array =
-  Array.iter ~f:(fun o -> print_string @@ (Option.value ~default:"None" o) ^ "|")
+let print_array x =
+  Array.iter ~f:(fun o -> print_string @@ (Option.value ~default:"None" o) ^ "|") x;
+  print_newline ()
 
 type command =
   | Append
@@ -66,10 +67,11 @@ let error_dump e =
  * Separate the addresses, command and args
  *)
 let matches_from_command_line line =
-  let address = "(\\+|\\-|\\d*|\\$|'[a-z])" in
+  let address = "(\\+|\\-|\\d+|\\$|'[a-z])" in
   let command = "(a|c|d|i)" in
   let args = "(.*)" in
-  let regex_str = ("^" ^ address ^ "(?:," ^ address ^ ")?" ^ command ^ args) in
+  (* build the complete regex using ^ to anchor at strat fo string. *)
+  let regex_str = ("^" ^ address ^ "?(?:," ^ address ^ ")?" ^ command ^ args) in
   let regex = match Re2.create regex_str with
     | Ok re -> re
     | Error _ -> failwith ("Invalid regex: " ^ regex_str) in
@@ -86,7 +88,7 @@ let get_command = function
   | "c" -> Change
   | "d" -> Delete
   | "i" -> Insert
-  | _ -> failwith "Invalid command string"
+  | x -> failwith @@ "Invalid command string" ^ "\"" ^ x  ^ "\""
 
 (**
  * execute [command] with [range], [args] on [command]
@@ -103,19 +105,18 @@ let process_string editor line =
   let () = match matches with
     | None -> print_endline "Could not parse command!"
     | Some m ->
-        let range = AddressRange.make
-          (Option.value ~default:"" (Array.get m 0))
-          (Array.get m 1)
-          editor.buffer in
+        print_array m
+(*
+        let range = (Option.value ~default:"" (Array.get m 0)) ^ (Option.value ~default:"" (Array.get m 1)) in
         let command = get_command @@ Option.value ~default:"" @@ Array.get m 2 in
         let args = Option.value ~default:"" @@ Array.get m 3 in
         print_endline (
-          "range: " ^
-          (match range with None -> "None" | Some a -> AddressRange.to_string a)
+          "range: " ^ range
           ^ ", " ^
           "command: " ^ (string_of_command command) ^ ", " ^
           "args: " ^ args
         )
+*)
   in
   editor
 

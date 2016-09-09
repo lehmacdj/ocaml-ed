@@ -27,4 +27,4 @@ val write: t -> unit
 (**
  * Returns the next line of text that after or before the current line marker.
  *)
-val find: t -> ?direction([< `Forward | `Backward]) -> string -> int
+val find: t -> int -> string -> ?direction:([`Forward | `Backward]) -> int
