@@ -36,16 +36,31 @@ let write (name, text, _) =
   | Some name ->
       Out_channel.write_lines name text
 
+(**
+ * Cycles a list. This is equivalent to making the element at indexed the first
+ * element of a new list and appending all of the elements that were at the
+ * start of the list to the end in the same order they initially were.
+ *)
+let cycle n lines =
+  (List.drop lines n) @ (List.take lines n)
+
+(* the type for find *)
+type search_direction =
+  | Forward
+  | Backward
+
 (* TODO: ensure that regex matching is the right regex matching for ed *)
-let find (_, lines, count) current regex ?(direction = `Forward) =
+let find (_, lines, count) current regex direction =
   let re = match Re2.create @@ Re2.escape regex with
     | Ok re -> re
     | Error _ -> failwith ("Invalid regex while searching: " ^ regex) in
   let search_list = match direction with
-    | `Forward -> List.drop lines (current - 1)
-    | `Backward -> List.drop (List.rev lines) (count - current) in
+    | Forward ->
+        cycle current lines
+    | Backward ->
+        (* Line numbers are the line count - the line number when reversed *)
+        cycle (count - current) (List.rev lines) in
   match List.findi search_list ~f:(fun _ -> Re2.matches re) with
-  | None -> failwith "unimplemented"
-  (* if not found go through the dropped elements of the list *)
-  (* if not found in those then the search element is not in the list *)
-  | Some (i, _) -> failwith "unimplemented"
+  | None -> failwith "not found in the buffer"
+  (* recompute the correct index for that line *)
+  | Some (i, _) -> i + current

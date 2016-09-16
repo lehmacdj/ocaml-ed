@@ -24,7 +24,11 @@ val get: t -> int -> string option
  *)
 val write: t -> unit
 
+type search_direction =
+  | Forward
+  | Backward
+
 (**
  * Returns the next line of text that after or before the current line marker.
  *)
-val find: t -> int -> string -> ?direction:([`Forward | `Backward]) -> int
+val find: t -> int -> string -> search_direction -> int

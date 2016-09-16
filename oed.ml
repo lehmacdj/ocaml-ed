@@ -5,4 +5,6 @@
  * Currently no command line parsing is supported.
  *)
 
+(* TODO: parse command line args *)
+(* TODO: put the name of the file to be edited here *)
 Main.run ""

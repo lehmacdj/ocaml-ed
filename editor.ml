@@ -15,11 +15,6 @@ type t = {
   line: int; (* The current line number *)
 }
 
-(**
- * Fails the program with error "failure".
- *)
-let fail () = failwith "failure"
-
 let make name =
   if name = "" then
     {
@@ -49,13 +44,61 @@ type command =
   | Append
   | Change
   | Delete
+  | Edit
+  | File
+  | Global
+  | GlobalInteractive
+  | HelpToggle
+  | Help
   | Insert
+  | Join
+  | List
+  | Move
+  | Number
+  | Print
+  | PromptToggle
+  | Quit
+  | QuitForce
+  | Read
+  | Substitute
+  | Transfer
+  | NotGlobal
+  | NotGlobalInteractive
+  | Write
+  | WriteAppend
+  | Scroll
+  | LineNumber
+  | Goto
 
 let string_of_command = function
   | Append -> "a"
   | Change -> "c"
   | Delete -> "d"
+  | Edit -> "e"
+  | File -> "f"
+  | Global -> "g"
+  | GlobalInteractive -> "G"
+  | HelpToggle -> "H"
+  | Help -> "h"
   | Insert -> "i"
+  | Join -> "j"
+  | List -> "l"
+  | Move -> "m"
+  | Number -> "n"
+  | Print -> "p"
+  | PromptToggle -> "P"
+  | Quit -> "q"
+  | QuitForce -> "Q"
+  | Read -> "r"
+  | Substitute -> "s"
+  | Transfer -> "t"
+  | NotGlobal -> "v"
+  | NotGlobalInteractive -> "V"
+  | Write -> "w"
+  | WriteAppend -> "W"
+  | Scroll -> "z"
+  | LineNumber -> "="
+  | Goto -> ""
 
 (**
  * Dump the contents of an error variable to std::out
@@ -64,11 +107,13 @@ let error_dump e =
   failwith @@ "failed with error: " ^ (Error.to_string_mach e)
 
 (**
- * Separate the addresses, command and args
+ * Separate the addresses, command and args. Effectively the main parser of the
+ * program. Some minor parsing occurs within each command in order to get the
+ * arguments that that command requires.
  *)
 let matches_from_command_line line =
-  let address = "(\\+|\\-|\\d+|\\$|'[a-z])" in
-  let command = "(a|c|d|i)" in
+  let address = "(\\+|[-^]|\\d+|\\$|'[a-z]|\\.)" in
+  let command = "(a|c|d|e|E|f|g|G|H|h|i|j|k|l|m|n|p|P|q|Q|r|s|t|u|v|w|W|z|=|)" in
   let args = "(.*)" in
   (* build the complete regex using ^ to anchor at strat fo string. *)
   let regex_str = ("^" ^ address ^ "?(?:," ^ address ^ ")?" ^ command ^ args) in
@@ -83,11 +128,35 @@ let matches_from_command_line line =
 (**
  * return the command that corresponds with the string representing it
  *)
-let get_command = function
+let parse_command = function
   | "a" -> Append
   | "c" -> Change
   | "d" -> Delete
+  | "e" -> Edit
+  | "f" -> File
+  | "g" -> Global
+  | "G" -> GlobalInteractive
+  | "H" -> HelpToggle
+  | "h" -> Help
   | "i" -> Insert
+  | "j" -> Join
+  | "l" -> List
+  | "m" -> Move
+  | "n" -> Number
+  | "p" -> Print
+  | "P" -> PromptToggle
+  | "q" -> Quit
+  | "Q" -> QuitForce
+  | "r" -> Read
+  | "s" -> Substitute
+  | "t" -> Transfer
+  | "v" -> NotGlobal
+  | "V" -> NotGlobalInteractive
+  | "w" -> Write
+  | "W" -> WriteAppend
+  | "z" -> Scroll
+  | "=" -> LineNumber
+  | "" -> Goto
   | x -> failwith @@ "Invalid command string" ^ "\"" ^ x  ^ "\""
 
 (**
@@ -98,25 +167,38 @@ let execute editor range command args =
   | Append -> failwith "unimplemented"
   | Change -> failwith "unimplemented"
   | Delete -> failwith "unimplemented"
+  | Edit -> failwith "unimplemented"
+  | File -> failwith "unimplemented"
+  | Global -> failwith "unimplemented"
+  | GlobalInteractive -> failwith "unimplemented"
+  | HelpToggle -> failwith "unimplemented"
+  | Help -> failwith "unimplemented"
   | Insert -> failwith "unimplemented"
+  | Join -> failwith "unimplemented"
+  | List -> failwith "unimplemented"
+  | Move -> failwith "unimplemented"
+  | Number -> failwith "unimplemented"
+  | Print -> failwith "unimplemented"
+  | PromptToggle -> failwith "unimplemented"
+  | Quit -> failwith "unimplemented"
+  | QuitForce -> failwith "unimplemented"
+  | Read -> failwith "unimplemented"
+  | Substitute -> failwith "unimplemented"
+  | Transfer -> failwith "unimplemented"
+  | NotGlobal -> failwith "unimplemented"
+  | NotGlobalInteractive -> failwith "unimplemented"
+  | Write -> failwith "unimplemented"
+  | WriteAppend -> failwith "unimplemented"
+  | Scroll -> failwith "unimplemented"
+  | LineNumber -> failwith "unimplemented"
+  | Goto -> failwith "unimplemented"
 
 let process_string editor line =
   let matches = matches_from_command_line line in
   let () = match matches with
     | None -> print_endline "Could not parse command!"
     | Some m ->
-        print_array m
-(*
-        let range = (Option.value ~default:"" (Array.get m 0)) ^ (Option.value ~default:"" (Array.get m 1)) in
-        let command = get_command @@ Option.value ~default:"" @@ Array.get m 2 in
-        let args = Option.value ~default:"" @@ Array.get m 3 in
-        print_endline (
-          "range: " ^ range
-          ^ ", " ^
-          "command: " ^ (string_of_command command) ^ ", " ^
-          "args: " ^ args
-        )
-*)
+        print_array m;
   in
   editor
 
