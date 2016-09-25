@@ -21,7 +21,7 @@ let make name =
       buffer = FileBuffer.make None;
       undo = 0;
       verbose = true;
-      output = "blah";
+      output = "no error message";
       line = 1;
     }
   else
@@ -29,15 +29,16 @@ let make name =
       buffer = FileBuffer.make (Some name);
       undo = 0;
       verbose = true;
-      output = "blah";
+      output = "no error message";
       line = 1;
     }
 
 (**
  * Prints the output of an array.
  *)
-let print_array x =
-  Array.iter ~f:(fun o -> print_string @@ (Option.value ~default:"None" o) ^ "|") x;
+let print_matches x =
+  Array.iter ~f:(fun o ->
+    print_string @@ (Option.value ~default:"None" o) ^ "|") x;
   print_newline ()
 
 type command =
@@ -111,8 +112,8 @@ let error_dump e =
  * program. Some minor parsing occurs within each command in order to get the
  * arguments that that command requires.
  *)
-let matches_from_command_line line =
-  let address = "(\\+|[-^]|\\d+|\\$|'[a-z]|\\.)" in
+let parse_string line =
+  let address = "(\\+|[-^]|\\d+|\\$|'[a-z]|\\.|/.*/|\\?.*\\?)" in
   let command = "(a|c|d|e|E|f|g|G|H|h|i|j|k|l|m|n|p|P|q|Q|r|s|t|u|v|w|W|z|=|)" in
   let args = "(.*)" in
   (* build the complete regex using ^ to anchor at strat fo string. *)
@@ -160,6 +161,14 @@ let parse_command = function
   | x -> failwith @@ "Invalid command string" ^ "\"" ^ x  ^ "\""
 
 (**
+ * parse a string that represents an address and return the correct line
+ * number in the buffer for that address. [addr] is the address to parse and
+ * [editor] is the current editor
+ *)
+let parse_address editor addr =
+  failwith "unimplented"
+
+(**
  * execute [command] with [range], [args] on [command]
  *)
 let execute editor range command args =
@@ -194,11 +203,11 @@ let execute editor range command args =
   | Goto -> failwith "unimplemented"
 
 let process_string editor line =
-  let matches = matches_from_command_line line in
+  let matches = parse_string line in
   let () = match matches with
     | None -> print_endline "Could not parse command!"
     | Some m ->
-        print_array m;
+        print_matches m;
   in
   editor
 
