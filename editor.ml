@@ -4,6 +4,8 @@
 open Core.Std
 open Re2.Std
 
+type command = EdCommand.t
+
 (*
  * The data the editor needs to store:
  *)
