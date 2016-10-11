@@ -3,7 +3,7 @@
 (** The type of a command which is passed around between various modules *)
 type t =
   | Append of string list
-  | Change
+  | Change of string list
   | Delete
   | Edit
   | File

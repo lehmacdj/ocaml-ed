@@ -3,7 +3,7 @@ open Re2.Std
 
 type t =
   | Append of string list
-  | Change
+  | Change of string list
   | Delete
   | Edit
   | File
@@ -33,7 +33,7 @@ type t =
 
 let string_of_command = function
   | Append l -> "a of " ^ (String.concat ~sep:"\n    " l)
-  | Change -> "c"
+  | Change l -> "c of " ^ (String.concat ~sep:"\n    " l)
   | Delete -> "d"
   | Edit -> "e"
   | File -> "f"
@@ -64,12 +64,12 @@ let string_of_command = function
 (** Used to create instances of command *)
 module Parser = struct
   type unfinished =
-    | NotStarted
+    | Empty
     | Partial of t
     | Completed of t
 
   (* an empty list represents a command that has not yet been completely parsed *)
-  let empty = NotStarted
+  let empty = Empty
 
   (**
    * Separate the addresses, command and args. Effectively the main parser of the
@@ -101,10 +101,17 @@ module Parser = struct
     Printf.printf "~parsed: [%S][,%S][%S][%S]\n" address1 address2 command args;
     match command with
     | "a" ->
-        if args <> "" then failwith "failure"
-          else Partial (Append [])
-    | "c" -> Completed Change
-    | "d" -> Completed Delete
+        if args <> ""
+        then failwith "trailing arguments behind append"
+        else Partial (Append [])
+    | "c" ->
+        if args <> ""
+        then failwith "trailing arguments behind change"
+        else Partial (Change [])
+    | "d" ->
+        if args <> ""
+        then failwith "trailing arguments behind delete"
+        else Completed Delete
     | "e" -> Completed Edit
     | "f" -> Completed File
     | "g" -> Completed Global
@@ -140,13 +147,16 @@ module Parser = struct
    *)
   let parse_line state line =
     match state with
-    | NotStarted ->
+    | Empty ->
         parse_first line
-    | Partial (Append lines) ->
+    | Partial Append lines ->
         if line = "."
         then Completed (Append lines)
         else Partial ((Append (line :: lines)))
-    | Partial Change -> failwith "failure"
+    | Partial Change lines ->
+        if line = "."
+        then Completed (Append lines)
+        else Partial ((Append (line :: lines)))
     | Partial Delete -> failwith "failure"
     | Partial Edit -> failwith "failure"
     | Partial File -> failwith "failure"
@@ -176,7 +186,7 @@ module Parser = struct
     | Completed c -> Completed c
 
   let finish = function
-    | NotStarted
+    | Empty
     | Partial _ -> None
     | Completed c -> Some c
 end
