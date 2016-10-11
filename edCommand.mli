@@ -4,9 +4,15 @@
  * A set of type aliases common to several modules that originate in this
  * module
  *)
-module Types: sig
+module Types : sig
   type address = string
-  type filename = string option
+  type filename =
+    (* either a file *)
+    | File of string
+    (* a command to read / write from *)
+    | Command of string
+    (* nothing; the current file *)
+    | ThisFile
   type text = string list
   type regex = string
 
@@ -19,7 +25,8 @@ module Types: sig
     | Change of address * text
     | Delete of address
     | Edit of filename
-    | File of filename
+    | EditForce of filename
+    | SetFile of filename
     | Global of address * address * regex * command
     | GlobalInteractive of address * address * regex
     | HelpToggle
@@ -43,6 +50,7 @@ module Types: sig
     | Scroll of address * int
     | LineNumber of address
     | Goto of address
+    | ParseError of string
 end
 
 (** The type is a command *)

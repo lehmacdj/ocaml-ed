@@ -3,7 +3,13 @@ open Re2.Std
 
 module Types = struct
   type address = string
-  type filename = string option
+  type filename =
+    (* either a file *)
+    | File of string
+    (* a command to read / write from *)
+    | Command of string
+    (* nothing; the current file *)
+    | ThisFile
   type text = string list
   type regex = string
 
@@ -17,7 +23,7 @@ module Types = struct
     | Delete of address
     | Edit of filename
     | EditForce of filename
-    | File of filename
+    | SetFile of filename
     | Global of address * address * regex * command
     | GlobalInteractive of address * address * regex
     | HelpToggle
@@ -41,6 +47,7 @@ module Types = struct
     | Scroll of address * int
     | LineNumber of address
     | Goto of address
+    | ParseError of string
 end
 
 (* we want to types to be accessible in scope of file *)
@@ -56,11 +63,11 @@ let rec to_string = function
   | Delete address ->
       Printf.sprintf "%Sd" address
   | Edit filename ->
-      Printf.sprintf "e %S" (opt_unwrap filename)
+      Printf.sprintf "e %S" (string_of_filename filename)
   | EditForce filename ->
-      Printf.sprintf "E %S" (opt_unwrap filename)
-  | File filename ->
-      Printf.sprintf "f %S" (opt_unwrap filename)
+      Printf.sprintf "E %S" (string_of_filename filename)
+  | SetFile filename ->
+      Printf.sprintf "f %S" (string_of_filename filename)
   | Global (address1, address2, regex, command) ->
       Printf.sprintf "%S,%Sg/%S/%S" address1 address2 regex (to_string command)
   | GlobalInteractive (address1, address2, regex) ->
@@ -83,7 +90,7 @@ let rec to_string = function
   | Quit -> "q"
   | QuitForce -> "Q"
   | Read filename ->
-      Printf.sprintf "r %S" (opt_unwrap filename)
+      Printf.sprintf "r %S" (string_of_filename filename)
   | Substitute (address1, address2, regex, substitution) ->
       Printf.sprintf "%S,%Ss/%S/%S/" address1 address2 regex substitution
   | Transfer (address1, address2, address3) ->
@@ -93,16 +100,21 @@ let rec to_string = function
   | NotGlobalInteractive (address1, address2, regex) ->
       Printf.sprintf "%S,%SV/%S" address1 address2 regex
   | Write (address1, address2, filename) ->
-      Printf.sprintf "%S,%Sw %S" address1 address2 (opt_unwrap filename)
+      Printf.sprintf "%S,%Sw %S" address1 address2 (string_of_filename filename)
   | WriteAppend (address1, address2, filename) ->
-      Printf.sprintf "%S,%SW %S" address1 address2 (opt_unwrap filename)
+      Printf.sprintf "%S,%SW %S" address1 address2 (string_of_filename filename)
   | Scroll (address, count) ->
       Printf.sprintf "%Sz%d" address count
   | LineNumber address ->
       Printf.sprintf "%S=" address
   | Goto address ->
       Printf.sprintf "%S" address
-and opt_unwrap = Option.value  ~default:"None"
+  | ParseError message ->
+      Printf.sprintf "ParseError: %s" message
+and string_of_filename = function
+  | File name -> name
+  | Command name -> "!" ^ name
+  | ThisFile -> "ThisFile"
 
 (** Used to create instances of command *)
 module Parser = struct
@@ -113,6 +125,10 @@ module Parser = struct
 
   (* an empty list represents a command that has not yet been completely parsed *)
   let empty = Empty
+
+  let error_to_none = function
+    | Ok x -> Some x
+    | Error _ -> None
 
   (** lex the first line of a command *)
   let lex_first line =
@@ -125,13 +141,10 @@ module Parser = struct
         ^ "(" ^ address_regex ^ ")?"
         ^ "(" ^ command_regex ^ ")"
         ^ "(" ^ args_regex ^ ")") in
-    let regex = match Re2.create regex_str with
-      | Ok re -> re
-      | Error _ -> failwith ("Invalid regex: " ^ regex_str) in
-    let matches = (match Re2.find_submatches regex line with
-      | Ok a -> Some a
-      | Error _ -> None)
-    |> Option.value ~default:(Array.create ~len:5 None) in
+    let regex = Re2.create_exn regex_str in
+    let matches = Re2.find_submatches regex line
+      |> error_to_none
+      |> Option.value ~default:(Array.create ~len:5 None) in
     let address_start = Array.get matches 1 in
     let address_separator = Array.get matches 2 in
     let address_primary = Array.get matches 3 in
@@ -153,94 +166,122 @@ module Parser = struct
   let parse_first line =
     let (address_start, address_separator, address_primary, command, args) =
       lex_first line in
+
+    let current_or_address = Option.value ~default:"." in
+
+    (** returns an error or [command] based on [args] *)
+    let check_command_suffix args command =
+      if args <> ""
+      then Completed (ParseError "invalid command suffix")
+      else command in
+
+    (** returns the filename to be used based on [args] *)
+    let parse_filename args =
+      let re = Re2.create_exn " (!)?(.*)" in
+      match Re2.find_submatches re args with
+      | Error _ -> Error "unexpected command suffix"
+      | Ok matches ->
+          (match (Array.get matches 1, Array.get matches 2) with
+          | None, None -> Ok (ThisFile)
+          | None, Some name -> Ok (File name)
+          | Some "!", Some name -> Ok (Command name)
+          | Some _, None
+          | Some _, Some _ -> Error "invalid file name") in
+
+    (** match the command string to return the command type object *)
     match command with
-    | "a" ->
-        if args <> ""
-        then failwith "trailing arguments behind append"
-        else Partial (Append (address_primary, []))
-    | "c" ->
-        if args <> ""
-        then failwith "trailing arguments behind change"
-        else Partial (Change [])
-    | "d" ->
-        if args <> ""
-        then failwith "trailing arguments behind delete"
-        else Completed Delete
-    | "e" -> Completed Edit
-    | "f" -> Completed File
-    | "g" -> Completed Global
-    | "G" -> Completed GlobalInteractive
-    | "H" -> Completed HelpToggle
-    | "h" -> Completed Help
-    | "i" -> Completed Insert
-    | "j" -> Completed Join
-    | "l" -> Completed List
-    | "m" -> Completed Move
-    | "n" -> Completed Number
-    | "p" -> Completed Print
-    | "P" -> Completed PromptToggle
-    | "q" -> Completed Quit
-    | "Q" -> Completed QuitForce
-    | "r" -> Completed Read
-    | "s" -> Completed Substitute
-    | "t" -> Completed Transfer
-    | "v" -> Completed NotGlobal
-    | "V" -> Completed NotGlobalInteractive
-    | "w" -> Completed Write
-    | "W" -> Completed WriteAppend
-    | "z" -> Completed Scroll
-    | "=" -> Completed LineNumber
-    | "" -> Completed Goto
-    | x -> failwith @@ "Invalid command string" ^ "\"" ^ x  ^ "\""
+    | "a" -> check_command_suffix args
+        (Partial (Append (current_or_address address_primary, [])))
+    | "c" -> check_command_suffix args
+        (Partial (Change (current_or_address address_primary, [])))
+    | "d" -> Completed (Delete (current_or_address address_primary))
+    | "e" ->
+        (match parse_filename args with
+        | Ok filename -> Completed (Edit filename)
+        | Error message -> Completed (ParseError message))
+    | "f" ->
+        (match parse_filename args with
+        | Ok filename -> Completed (SetFile filename)
+        | Error message -> Completed (ParseError message))
+    | "g" -> failwith "unimplemented"
+    | "G" -> failwith "unimplemented"
+    | "H" -> failwith "unimplemented"
+    | "h" -> failwith "unimplemented"
+    | "i" -> failwith "unimplemented"
+    | "j" -> failwith "unimplemented"
+    | "l" -> failwith "unimplemented"
+    | "m" -> failwith "unimplemented"
+    | "n" -> failwith "unimplemented"
+    | "p" -> failwith "unimplemented"
+    | "P" -> failwith "unimplemented"
+    | "q" -> failwith "unimplemented"
+    | "Q" -> failwith "unimplemented"
+    | "r" -> failwith "unimplemented"
+    | "s" -> failwith "unimplemented"
+    | "t" -> failwith "unimplemented"
+    | "v" -> failwith "unimplemented"
+    | "V" -> failwith "unimplemented"
+    | "w" -> failwith "unimplemented"
+    | "W" -> failwith "unimplemented"
+    | "z" -> failwith "unimplemented"
+    | "=" -> failwith "unimplemented"
+    | "" -> failwith "unimplemented"
+    | x -> Completed (ParseError ("Invalid command string" ^ "\"" ^ x  ^ "\""))
 
-  (**
-   * finds the next state based on the previous state
-   * - unstarted commands are parsed initially
-   * - partial commands are updated to be closer to being complete
-   * - complete commands are not changed
-   *)
-  let parse_line state line =
-    match state with
-    | Empty ->
-        parse_first line
-    | Partial Append lines ->
-        if line = "."
-        then Completed (Append lines)
-        else Partial ((Append (line :: lines)))
-    | Partial Change lines ->
-        if line = "."
-        then Completed (Append lines)
-        else Partial ((Append (line :: lines)))
-    | Partial Delete -> failwith "failure"
-    | Partial Edit -> failwith "failure"
-    | Partial File -> failwith "failure"
-    | Partial Global -> failwith "failure"
-    | Partial GlobalInteractive -> failwith "failure"
-    | Partial HelpToggle -> failwith "failure"
-    | Partial Help -> failwith "failure"
-    | Partial Insert -> failwith "failure"
-    | Partial Join -> failwith "failure"
-    | Partial List -> failwith "failure"
-    | Partial Move -> failwith "failure"
-    | Partial Number -> failwith "failure"
-    | Partial Print -> failwith "failure"
-    | Partial PromptToggle -> failwith "failure"
-    | Partial Quit -> failwith "failure"
-    | Partial QuitForce -> failwith "failure"
-    | Partial Read -> failwith "failure"
-    | Partial Substitute -> failwith "failure"
-    | Partial Transfer -> failwith "failure"
-    | Partial NotGlobal -> failwith "failure"
-    | Partial NotGlobalInteractive -> failwith "failure"
-    | Partial Write -> failwith "failure"
-    | Partial WriteAppend -> failwith "failure"
-    | Partial Scroll -> failwith "failure"
-    | Partial LineNumber -> failwith "failure"
-    | Partial Goto -> failwith "failure"
-    | Completed c -> Completed c
+    (**
+     * finds the next state based on the previous state
+     * - unstarted commands are parsed initially
+     * - partial commands are updated to be closer to being complete
+     * - complete commands are not changed
+     *)
+    let parse_line state line =
+      match state with
+      | Empty ->
+          parse_first line
+      | Partial Append (a, lines) ->
+          if line = "."
+          then Completed (Append (a, lines))
+          else Partial (Append (a, line :: lines))
+      | Partial Change (a, lines) ->
+          if line = "."
+          then Completed (Change (a, lines))
+          else Partial (Change (a, line :: lines))
+      | Partial Insert (a, lines) ->
+          if line = "."
+          then Completed (Insert (a, lines))
+          else Partial (Change (a, line :: lines))
+      | Partial Global _ -> failwith "unimplemented"
+      | Partial NotGlobal _ -> failwith "unimplemented"
 
-  let finish = function
-    | Empty
-    | Partial _ -> None
-    | Completed c -> Some c
+      | Partial Delete _
+      | Partial Edit _
+      | Partial EditForce _
+      | Partial GlobalInteractive _
+      | Partial Goto _
+      | Partial Help
+      | Partial HelpToggle
+      | Partial Join _
+      | Partial LineNumber _
+      | Partial List _
+      | Partial Move _
+      | Partial NotGlobalInteractive _
+      | Partial Number _
+      | Partial Print _
+      | Partial PromptToggle
+      | Partial Quit
+      | Partial QuitForce
+      | Partial Read _
+      | Partial Scroll _
+      | Partial SetFile _
+      | Partial Substitute _
+      | Partial Transfer _
+      | Partial Write _
+      | Partial WriteAppend _
+      | Partial ParseError _
+      | Completed _ -> failwith "should never occur"
+
+    let finish = function
+      | Empty
+      | Partial _ -> None
+      | Completed c -> Some c
 end

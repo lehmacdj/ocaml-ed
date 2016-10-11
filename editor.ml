@@ -39,7 +39,7 @@ let make name =
  * execute [command] on [editor] and return the new editor
  *)
 let execute editor command =
-    {editor with output = EdCommand.string_of_command command}
+    {editor with output = EdCommand.to_string command}
 
 let verbose editor = editor.verbose
 
