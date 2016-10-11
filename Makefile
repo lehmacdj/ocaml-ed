@@ -12,3 +12,7 @@ oed:
 
 clean:
 	$(CC) -clean
+
+mli:
+	ocamlc -I _build/ *.mli
+	mv *.cmi _build/
