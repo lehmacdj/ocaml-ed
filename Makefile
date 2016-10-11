@@ -3,12 +3,11 @@
 #
 
 CC=corebuild
-CFLAGS=-package re2 -package async
 
-all: oed
+all: oed tests
 
 oed:
-	$(CC) $(CFLAGS) oed.byte
+	$(CC) -package re2 -package async -oed.byte
 
 clean:
 	$(CC) -clean
