@@ -13,9 +13,9 @@ type t
 val make: string -> t
 
 (**
- * Returns a editor that has been transformed after applying the input string.
+ * Execute a command on this editor and return the new state of the editor.
  *)
-val process_string: t -> string -> t
+val execute: t -> EdCommand.t -> t
 
 (**
  * The error string that should be printed to std::out if in verbose mode
