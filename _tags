@@ -1,0 +1,2 @@
+<test/*.ml{,i}>: predicate(ppx_driver)
+<test/*.ml{,i}>: pp(ppx-jane -dump-ast -inline-test-lib ocaml-ed)

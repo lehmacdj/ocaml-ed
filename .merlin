@@ -5,8 +5,7 @@ B test/_build/
 
 PKG core
 PKG re2
-PKG async
+PKG ppx_jane
+PKG ppx_inline_test.runtime-lib
 
-# ounit files and custom syntax files
-PKG pa_ounit
-EXT ounit
+FLG -ppx 'ppx-jane -as-ppx -inline-test-lib ocaml-ed'
