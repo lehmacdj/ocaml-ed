@@ -19,7 +19,7 @@ mli:
 	@mv *.cmi _build/
 
 tests:
-	$(CC) -Is .,test $(PACKAGES) edCommand_test.byte
+	$(CC) -Is .,test -package ounit $(PACKAGES) edCommand_test.byte
 
 .PHONY: test
 

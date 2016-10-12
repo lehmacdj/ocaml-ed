@@ -1,1 +1,6 @@
-let%test "hello world" = 1 = 1
+open EdCommand.Types
+open OUnit2
+
+let edit = Completed Edit File "hello"
+
+let%test "edit" = edit = (Completed Edit File "hello")
