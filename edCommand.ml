@@ -164,18 +164,17 @@ module Parser = struct
    * arguments that that command requires.
    *)
   let parse_first line =
-    let (address_start, address_separator, address_primary, command, args) =
-      lex_first line in
+    let (_, _, address_primary, command, args) = lex_first line in
 
     let current_or_address = Option.value ~default:"." in
 
-    (** returns an error or [command] based on [args] *)
+    (* returns an error or [command] based on [args] *)
     let check_command_suffix args command =
       if args <> ""
       then Completed (ParseError "invalid command suffix")
       else command in
 
-    (** returns the filename to be used based on [args] *)
+    (* returns the filename to be used based on [args] *)
     let parse_filename args =
       let re = Re2.create_exn " (!)?(.*)" in
       match Re2.find_submatches re args with
@@ -188,7 +187,7 @@ module Parser = struct
           | Some _, None
           | Some _, Some _ -> Error "invalid file name") in
 
-    (** match the command string to return the command type object *)
+    (* match the command string to return the command type object *)
     match command with
     | "a" -> check_command_suffix args
         (Partial (Append (current_or_address address_primary, [])))

@@ -51,7 +51,7 @@ type search_direction =
 
 (* TODO: ensure that regex matching is the right regex matching for ed *)
 let find (_, lines, count) current regex direction =
-  let re = match Re2.create @@ Re2.escape regex with
+  let re = match Re2.create ~options:[] (Re2.escape regex) with
     | Ok re -> re
     | Error _ -> failwith ("Invalid regex while searching: " ^ regex) in
   let search_list = match direction with
