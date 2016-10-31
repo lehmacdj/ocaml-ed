@@ -40,8 +40,8 @@ module Types = struct
     | Read of filename
     | Substitute of address * address * regex * string
     | Transfer of address * address * address
-    | NotGlobal of address * address * regex * command
-    | NotGlobalInteractive of address * address * regex
+    | ConverseGlobal of address * address * regex * command
+    | ConverseGlobalInteractive of address * address * regex
     | Write of address * address * filename
     | WriteAppend of address * address * filename
     | Scroll of address * int
@@ -95,9 +95,9 @@ let rec to_string = function
       Printf.sprintf "%S,%Ss/%S/%S/" address1 address2 regex substitution
   | Transfer (address1, address2, address3) ->
       Printf.sprintf "%S,%St%S" address1 address2 address3
-  | NotGlobal (address1, address2, regex, command) ->
+  | ConverseGlobal (address1, address2, regex, command) ->
       Printf.sprintf "%S,%Sv/%S/%S" address1 address2 regex (to_string command)
-  | NotGlobalInteractive (address1, address2, regex) ->
+  | ConverseGlobalInteractive (address1, address2, regex) ->
       Printf.sprintf "%S,%SV/%S" address1 address2 regex
   | Write (address1, address2, filename) ->
       Printf.sprintf "%S,%Sw %S" address1 address2 (string_of_filename filename)
@@ -121,7 +121,7 @@ module Parser = struct
   type unfinished =
     | Empty
     | Partial of t
-    | Completed of t
+    | Complete of t
 
   (* an empty list represents a command that has not yet been completely parsed *)
   let empty = Empty
@@ -171,7 +171,7 @@ module Parser = struct
     (* returns an error or [command] based on [args] *)
     let check_command_suffix args command =
       if args <> ""
-      then Completed (ParseError "invalid command suffix")
+      then Complete (ParseError "invalid command suffix")
       else command in
 
     (* returns the filename to be used based on [args] *)
@@ -193,15 +193,15 @@ module Parser = struct
         (Partial (Append (current_or_address address_primary, [])))
     | "c" -> check_command_suffix args
         (Partial (Change (current_or_address address_primary, [])))
-    | "d" -> Completed (Delete (current_or_address address_primary))
+    | "d" -> Complete (Delete (current_or_address address_primary))
     | "e" ->
         (match parse_filename args with
-        | Ok filename -> Completed (Edit filename)
-        | Error message -> Completed (ParseError message))
+        | Ok filename -> Complete (Edit filename)
+        | Error message -> Complete (ParseError message))
     | "f" ->
         (match parse_filename args with
-        | Ok filename -> Completed (SetFile filename)
-        | Error message -> Completed (ParseError message))
+        | Ok filename -> Complete (SetFile filename)
+        | Error message -> Complete (ParseError message))
     | "g" -> failwith "unimplemented"
     | "G" -> failwith "unimplemented"
     | "H" -> failwith "unimplemented"
@@ -225,7 +225,7 @@ module Parser = struct
     | "z" -> failwith "unimplemented"
     | "=" -> failwith "unimplemented"
     | "" -> failwith "unimplemented"
-    | x -> Completed (ParseError ("Invalid command string" ^ "\"" ^ x  ^ "\""))
+    | x -> Complete (ParseError ("Invalid command string" ^ "\"" ^ x  ^ "\""))
 
     (**
      * finds the next state based on the previous state
@@ -239,18 +239,20 @@ module Parser = struct
           parse_first line
       | Partial Append (a, lines) ->
           if line = "."
-          then Completed (Append (a, lines))
+          then Complete (Append (a, lines))
           else Partial (Append (a, line :: lines))
       | Partial Change (a, lines) ->
           if line = "."
-          then Completed (Change (a, lines))
+          then Complete (Change (a, lines))
           else Partial (Change (a, line :: lines))
       | Partial Insert (a, lines) ->
           if line = "."
-          then Completed (Insert (a, lines))
+          then Complete (Insert (a, lines))
           else Partial (Change (a, line :: lines))
+
+      (* Parse the further global command *)
       | Partial Global _ -> failwith "unimplemented"
-      | Partial NotGlobal _ -> failwith "unimplemented"
+      | Partial ConverseGlobal _ -> failwith "unimplemented"
 
       | Partial Delete _
       | Partial Edit _
@@ -263,7 +265,7 @@ module Parser = struct
       | Partial LineNumber _
       | Partial List _
       | Partial Move _
-      | Partial NotGlobalInteractive _
+      | Partial ConverseGlobalInteractive _
       | Partial Number _
       | Partial Print _
       | Partial PromptToggle
@@ -277,10 +279,10 @@ module Parser = struct
       | Partial Write _
       | Partial WriteAppend _
       | Partial ParseError _
-      | Completed _ -> failwith "should never occur"
+      | Complete _ -> failwith "should never occur"
 
     let finish = function
       | Empty
       | Partial _ -> None
-      | Completed c -> Some c
+      | Complete c -> Some c
 end
