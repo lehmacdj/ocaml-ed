@@ -12,7 +12,7 @@ let parse_command () =
     match finish command with
     | None -> helper (parse_line command (read_line ()))
     | Some c -> c in
-  helper empty
+  helper initial
 
 (*
  * The main function of the program. Logic for input and output goes here along

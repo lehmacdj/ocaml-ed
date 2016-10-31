@@ -118,13 +118,15 @@ and string_of_filename = function
 
 (** Used to create instances of command *)
 module Parser = struct
-  type unfinished =
+  type parse_state =
     | Empty
     | Partial of t
     | Complete of t
 
-  (* an empty list represents a command that has not yet been completely parsed *)
-  let empty = Empty
+  (*
+   * the initial parse state
+   *)
+  let initial = Empty
 
   let error_to_none = function
     | Ok x -> Some x
