@@ -1,6 +1,7 @@
 (*
  * A text buffer being used by oed.
  *)
+open Types
 
 (**
  * The type of the text buffer. Represents the filename and
@@ -22,7 +23,7 @@ val get: t -> int -> string option
 (**
  * Writes the file to the filesytem.
  *)
-val write: t -> unit
+val write: t -> ?range:address_range -> unit
 
 (**
  * The direction to search through the buffer

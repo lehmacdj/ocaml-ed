@@ -4,6 +4,8 @@
 open Core.Std
 open Re2.Std
 
+open Types
+
 (**
  * The name of the file (optional) and a list of all of the lines in the file,
  * and the number of lines in the file.
@@ -29,7 +31,7 @@ let make = function
 let get (_, text, _) line =
   List.nth text line
 
-let write (name, text, _) =
+let write (name, text, _) ?(range = (FirstLine, LastLine)) =
   match name with
   | None ->
       failwith "filename is undefined"

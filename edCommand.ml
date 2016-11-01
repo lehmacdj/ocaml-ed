@@ -1,120 +1,124 @@
 open Core.Std
 open Re2.Std
 
-module Types = struct
-  type address = string
-  type filename =
-    (* either a file *)
-    | File of string
-    (* a command to read / write from *)
-    | Command of string
-    (* nothing; the current file *)
-    | ThisFile
-  type text = string list
-  type regex = string
-
-  (**
-   * The first two addresses of any command are the address to execute the
-   * command on. If there are more the remaining addresses are commands
-   *)
-  type command =
-    | Append of address * text
-    | Change of address * text
-    | Delete of address
-    | Edit of filename
-    | EditForce of filename
-    | SetFile of filename
-    | Global of address * address * regex * command
-    | GlobalInteractive of address * address * regex
-    | HelpToggle
-    | Help
-    | Insert of address * text
-    | Join of address * address
-    | List of address * address
-    | Move of address * address * address
-    | Number of address * address
-    | Print of address * address
-    | PromptToggle
-    | Quit
-    | QuitForce
-    | Read of filename
-    | Substitute of address * address * regex * string
-    | Transfer of address * address * address
-    | ConverseGlobal of address * address * regex * command
-    | ConverseGlobalInteractive of address * address * regex
-    | Write of address * address * filename
-    | WriteAppend of address * address * filename
-    | Scroll of address * int
-    | LineNumber of address
-    | Goto of address
-    | ParseError of string
-end
-
 (* we want to types to be accessible in scope of file *)
 open Types
 
 type t = command
 
+let string_of_address = function
+  | FirstLine -> "1"
+  | Current -> "."
+  | Line n -> string_of_int n
+  | ForwardSearch re -> "/" ^ re ^ "/"
+  | BackwardSearch re -> "?" ^ re ^ "?"
+  | LastLine -> "$"
+
+let string_of_filename = function
+  | File name -> name
+  | Command name -> "!" ^ name
+  | ThisFile -> "ThisFile"
+
+let string_of_address_range (address1, address2) =
+  (string_of_address address1) ^ "," ^ (string_of_address address2)
+
 let rec to_string = function
   | Append (address, lines) ->
-      Printf.sprintf "%Sa\n    %s" address (String.concat ~sep:"\n    " lines)
+      Printf.sprintf "%Sa\n    %s"
+          (string_of_address address)
+          (String.concat ~sep:"\n    " lines)
   | Change (address, lines) ->
-      Printf.sprintf "%Sc\n    %s" address (String.concat ~sep:"\n    " lines)
+      Printf.sprintf "%Sc\n    %s"
+        (string_of_address address)
+        (String.concat ~sep:"\n    " lines)
   | Delete address ->
-      Printf.sprintf "%Sd" address
+      Printf.sprintf "%Sd"
+          (string_of_address address)
   | Edit filename ->
-      Printf.sprintf "e %S" (string_of_filename filename)
+      Printf.sprintf "e %S"
+          (string_of_filename filename)
   | EditForce filename ->
-      Printf.sprintf "E %S" (string_of_filename filename)
+      Printf.sprintf "E %S"
+          (string_of_filename filename)
   | SetFile filename ->
-      Printf.sprintf "f %S" (string_of_filename filename)
-  | Global (address1, address2, regex, command) ->
-      Printf.sprintf "%S,%Sg/%S/%S" address1 address2 regex (to_string command)
-  | GlobalInteractive (address1, address2, regex) ->
-      Printf.sprintf "%S,%SG/%S" address1 address2 regex
+      Printf.sprintf "f %S"
+          (string_of_filename filename)
+  | Global (address_range, regex, command) ->
+      Printf.sprintf "%Sg/%S/%S"
+          (string_of_address_range address_range)
+          regex
+          (to_string command)
+  | GlobalInteractive (address_range, regex) ->
+      Printf.sprintf "%SG/%S"
+          (string_of_address_range address_range)
+          regex
   | HelpToggle -> "H"
   | Help -> "h"
   | Insert (address, lines) ->
-      Printf.sprintf "%Sa\n    %s" address (String.concat ~sep:"\n    " lines)
-  | Join (address1, address2) ->
-      Printf.sprintf "%S,%Sj" address1 address2
-  | List (address1, address2) ->
-      Printf.sprintf "%S,%Sl" address1 address2
-  | Move (address1, address2, address3) ->
-      Printf.sprintf "%S,%Sm%S" address1 address2 address3
-  | Number (address1, address2) ->
-      Printf.sprintf "%S,%Sn" address1 address2
-  | Print (address1, address2) ->
-      Printf.sprintf "%S,%Sp" address1 address2
+      Printf.sprintf "%Sa\n    %s"
+          (string_of_address address)
+          (String.concat ~sep:"\n    " lines)
+  | Join (address_range) ->
+      Printf.sprintf "%Sj"
+          (string_of_address_range address_range)
+  | List (address_range) ->
+      Printf.sprintf "%Sl"
+          (string_of_address_range address_range)
+  | Move (address_range, address3) ->
+      Printf.sprintf "%Sm%S"
+          (string_of_address_range address_range)
+          (string_of_address address3)
+  | Number (address_range) ->
+      Printf.sprintf "%Sn"
+          (string_of_address_range address_range)
+  | Print (address_range) ->
+      Printf.sprintf "%Sp"
+          (string_of_address_range address_range)
   | PromptToggle -> "P"
   | Quit -> "q"
   | QuitForce -> "Q"
   | Read filename ->
-      Printf.sprintf "r %S" (string_of_filename filename)
-  | Substitute (address1, address2, regex, substitution) ->
-      Printf.sprintf "%S,%Ss/%S/%S/" address1 address2 regex substitution
-  | Transfer (address1, address2, address3) ->
-      Printf.sprintf "%S,%St%S" address1 address2 address3
-  | ConverseGlobal (address1, address2, regex, command) ->
-      Printf.sprintf "%S,%Sv/%S/%S" address1 address2 regex (to_string command)
-  | ConverseGlobalInteractive (address1, address2, regex) ->
-      Printf.sprintf "%S,%SV/%S" address1 address2 regex
-  | Write (address1, address2, filename) ->
-      Printf.sprintf "%S,%Sw %S" address1 address2 (string_of_filename filename)
-  | WriteAppend (address1, address2, filename) ->
-      Printf.sprintf "%S,%SW %S" address1 address2 (string_of_filename filename)
+      Printf.sprintf "r %S"
+          (string_of_filename filename)
+  | Substitute (address_range, regex, substitution) ->
+      Printf.sprintf "%Ss/%S/%S/"
+          (string_of_address_range address_range)
+          regex
+          substitution
+  | Transfer (address_range, address3) ->
+      Printf.sprintf "%St%S"
+          (string_of_address_range address_range)
+          (string_of_address address3)
+  | ConverseGlobal (address_range, regex, command) ->
+      Printf.sprintf "%Sv/%S/%S"
+          (string_of_address_range address_range)
+          regex
+          (to_string command)
+  | ConverseGlobalInteractive (address_range, regex) ->
+      Printf.sprintf "%SV/%S"
+          (string_of_address_range address_range)
+          regex
+  | Write (address_range, filename) ->
+      Printf.sprintf "%Sw %S"
+          (string_of_address_range address_range)
+          (string_of_filename filename)
+  | WriteAppend (address_range, filename) ->
+      Printf.sprintf "%SW %S"
+          (string_of_address_range address_range)
+          (string_of_filename filename)
   | Scroll (address, count) ->
-      Printf.sprintf "%Sz%d" address count
+      Printf.sprintf "%Sz%d"
+          (string_of_address address)
+          count
   | LineNumber address ->
-      Printf.sprintf "%S=" address
+      Printf.sprintf "%S="
+          (string_of_address address)
   | Goto address ->
-      Printf.sprintf "%S" address
+      Printf.sprintf "%S"
+          (string_of_address address)
   | ParseError message ->
-      Printf.sprintf "ParseError: %s" message
-and string_of_filename = function
-  | File name -> name
-  | Command name -> "!" ^ name
-  | ThisFile -> "ThisFile"
+      Printf.sprintf "ParseError: %s"
+          message
 
 (** Used to create instances of command *)
 module Parser = struct
@@ -168,15 +172,49 @@ module Parser = struct
 
     (address_start, address_separator, address_primary, command, args)
 
+  (** a base function for parse address *)
+  let _parse_address ~default ~relative_to = function
+    | None -> default
+    | Some str -> failwith "can't parse address"
+
+  (** return an address based on an address string and a default address *)
+  let parse_address = _parse_address ~relative_to:FirstLine
+
+  (** return a pair of addresses representing an address range *)
+  let parse_address_range addr1 delim addr2 ~default1 ~default2 =
+    match addr1, delim, addr2 with
+    | (a1, delim, a2) when delim = (Some ",") ->
+        (_parse_address a1 ~default:default1 ~relative_to:FirstLine,
+        _parse_address a2 ~default:default2 ~relative_to:FirstLine)
+    | (a1, delim, a2) when delim = (Some ";") ->
+        let addr1 = _parse_address a1 ~default:default1 ~relative_to:FirstLine in
+        (addr1, _parse_address a2 ~default:default2 ~relative_to:addr1)
+    | (_, Some delim, _) -> failwith ("invalid delimiter " ^ delim)
+    | (_, None, _) -> failwith ("no valid delimiter")
+
+  (* returns the filename to be used based on [args] *)
+  let parse_filename args =
+    let re = Re2.create_exn " (!)?(.*)" in
+    match Re2.find_submatches re args with
+    | Error _ -> Error "unexpected command suffix"
+    | Ok matches ->
+        (match (Array.get matches 1, Array.get matches 2) with
+        | None, None -> Ok (ThisFile)
+        | None, Some name -> Ok (File name)
+        | Some "!", Some name -> Ok (Command name)
+        | Some _, None
+        | Some _, Some _ -> Error "invalid file name")
+
   (**
    * Separate the addresses, command and args. Effectively the main parser of the
    * program. Some minor parsing occurs within each command in order to get the
    * arguments that that command requires.
    *)
   let parse_first line =
-    let (_, _, address_primary, command, args) = lex_first line in
-
-    let current_or_address = Option.value ~default:"." in
+    let (address_start,
+         address_separator,
+         address_primary,
+         command, args) = lex_first line in
 
     (* returns an error or [command] based on [args] *)
     let check_command_suffix args command =
@@ -184,26 +222,19 @@ module Parser = struct
       then Complete (ParseError "invalid command suffix")
       else command in
 
-    (* returns the filename to be used based on [args] *)
-    let parse_filename args =
-      let re = Re2.create_exn " (!)?(.*)" in
-      match Re2.find_submatches re args with
-      | Error _ -> Error "unexpected command suffix"
-      | Ok matches ->
-          (match (Array.get matches 1, Array.get matches 2) with
-          | None, None -> Ok (ThisFile)
-          | None, Some name -> Ok (File name)
-          | Some "!", Some name -> Ok (Command name)
-          | Some _, None
-          | Some _, Some _ -> Error "invalid file name") in
+    let addr_or_current = parse_address ~default:Current in
 
     (* match the command string to return the command type object *)
     match command with
     | "a" -> check_command_suffix args
-        (Partial (Append (current_or_address address_primary, [])))
+        (Partial (Append (addr_or_current address_primary, [])))
     | "c" -> check_command_suffix args
-        (Partial (Change (current_or_address address_primary, [])))
-    | "d" -> Complete (Delete (current_or_address address_primary))
+        (Partial (Change (addr_or_current address_primary, [])))
+    | "i" -> check_command_suffix args
+        (Partial (Insert (addr_or_current address_primary, [])))
+    | "d" -> Complete (Delete (addr_or_current address_primary))
+
+    (* filename operations *)
     | "e" ->
         (match parse_filename args with
         | Ok filename -> Complete (Edit filename)
@@ -212,11 +243,35 @@ module Parser = struct
         (match parse_filename args with
         | Ok filename -> Complete (SetFile filename)
         | Error message -> Complete (ParseError message))
+
+    (* write operations *)
+    | "w" ->
+        (match parse_filename args with
+        | Ok filename -> Complete (Write (
+            (parse_address_range
+                address_start
+                address_separator
+                address_primary
+                ~default1:FirstLine
+                ~default2:LastLine),
+            filename))
+        | Error message -> Complete (ParseError message))
+    | "W" ->
+        (match parse_filename args with
+        | Ok filename -> Complete (WriteAppend (
+            (parse_address_range
+                address_start
+                address_separator
+                address_primary
+                ~default1:FirstLine
+                ~default2:LastLine),
+            filename))
+        | Error message -> Complete (ParseError message))
+
     | "g" -> failwith "unimplemented"
     | "G" -> failwith "unimplemented"
     | "H" -> failwith "unimplemented"
     | "h" -> failwith "unimplemented"
-    | "i" -> failwith "unimplemented"
     | "j" -> failwith "unimplemented"
     | "l" -> failwith "unimplemented"
     | "m" -> failwith "unimplemented"
@@ -230,8 +285,6 @@ module Parser = struct
     | "t" -> failwith "unimplemented"
     | "v" -> failwith "unimplemented"
     | "V" -> failwith "unimplemented"
-    | "w" -> failwith "unimplemented"
-    | "W" -> failwith "unimplemented"
     | "z" -> failwith "unimplemented"
     | "=" -> failwith "unimplemented"
     | "" -> failwith "unimplemented"
