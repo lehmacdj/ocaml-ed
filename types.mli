@@ -10,10 +10,11 @@ type regex = string
 type address =
   | FirstLine (** the first line in the buffer *)
   | Current (** the current line *)
+  | Offset of int (** an offset from the current line *)
   | Line of int (** the line numbered line *)
+  | LastLine (** the last line in the file *)
   | ForwardSearch of regex (** the first line from the current line that matches the regex *)
   | BackwardSearch of regex (** the previous line from the current line that matches the regex *)
-  | LastLine (** the last line in the file *)
 
 (**
  * A pair of address used as a parameter type for some methods

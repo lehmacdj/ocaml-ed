@@ -9,6 +9,7 @@ type t = command
 let string_of_address = function
   | FirstLine -> "1"
   | Current -> "."
+  | Offset n -> string_of_int n
   | Line n -> string_of_int n
   | ForwardSearch re -> "/" ^ re ^ "/"
   | BackwardSearch re -> "?" ^ re ^ "?"
@@ -173,9 +174,19 @@ module Parser = struct
     (address_start, address_separator, address_primary, command, args)
 
   (** a base function for parse address *)
-  let _parse_address ~default ~relative_to = function
+  let _parse_address address ~default ~relative_to =
+    let num = Re2.create_exn "\\d*" in
+    let poffset = Re2.create_exn "[-^]" in
+    let noffset = Re2.create_exn "\\+" in
+    match address with
     | None -> default
-    | Some str -> failwith "can't parse address"
+    | Some s when s = "1"               -> FirstLine
+    | Some s when s = "."               -> Current
+    | Some s when s = "$"               -> LastLine
+    | Some s when Re2.matches num s     -> Line (int_of_string s)
+    | Some s when Re2.matches poffset s -> Offset (-1)
+    | Some s when Re2.matches noffset s -> Offset (+1)
+    | Some s                            -> failwith "cannot parse this address"
 
   (** return an address based on an address string and a default address *)
   let parse_address = _parse_address ~relative_to:FirstLine
