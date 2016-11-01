@@ -134,30 +134,38 @@ module Parser = struct
 
   (** lex the first line of a command *)
   let lex_first line =
+    (* address regex; TODO: add every kind of address to this *)
     let address_regex = "\\+|[-^]|\\d+|\\$|'[a-z]|;|," in
+    (* all of the characters that denote the first character of a command *)
     let command_regex =
       "a|c|d|e|E|f|g|G|H|h|i|j|k|l|m|n|p|P|q|Q|r|s|t|u|v|w|W|z|=|" in
-    let args_regex = ".*" in
+    (* match everything for arguments *)
+    let args_regex    = ".*" in
     (* build the complete regex using ^ to anchor at start of string. *)
     let regex_str = ("^(?:(" ^ address_regex ^ ")(,|;))*"
-        ^ "(" ^ address_regex ^ ")?"
-        ^ "(" ^ command_regex ^ ")"
-        ^ "(" ^ args_regex ^ ")") in
+                       ^ "(" ^ address_regex ^ ")?"
+                       ^ "(" ^ command_regex ^ ")"
+                       ^ "(" ^ args_regex    ^ ")") in
     let regex = Re2.create_exn regex_str in
     let matches = Re2.find_submatches regex line
       |> error_to_none
       |> Option.value ~default:(Array.create ~len:5 None) in
-    let address_start = Array.get matches 1 in
+
+    (* get the necessary indices *)
+    let address_start     = Array.get matches 1 in
     let address_separator = Array.get matches 2 in
-    let address_primary = Array.get matches 3 in
-    let command = Array.get matches 4 |> Option.value ~default:"" in
-    let args = Array.get matches 5 |> Option.value ~default:"" in
+    let address_primary   = Array.get matches 3 in
+    let command           = Array.get matches 4 |> Option.value ~default:"" in
+    let args              = Array.get matches 5 |> Option.value ~default:"" in
+
+    (* print a debugging view for what was parsed *)
     Printf.printf "~parsed: [%S%s][%S][%S][%S]\n"
         (Option.value ~default:"None" address_start)
         (Option.value ~default:"$" address_separator)
         (Option.value ~default:"None" address_primary)
         command
         args;
+
     (address_start, address_separator, address_primary, command, args)
 
   (**
