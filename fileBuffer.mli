@@ -24,9 +24,12 @@ val get: t -> int -> string option
  *)
 val write: t -> unit
 
+(**
+ * The direction to search through the buffer
+ *)
 type search_direction =
-  | Forward
-  | Backward
+  | Forward (** Search forward through the buffer to lines past the current *)
+  | Backward (** Search backward for previous lines *)
 
 (**
  * Returns the next line of text that after or before the current line marker.
