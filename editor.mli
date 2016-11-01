@@ -3,11 +3,6 @@
  *)
 
 (**
- * import the command type so it may be used without prefix
- *)
-type command = EdCommand.t
-
-(**
  * The type that represents a text editor.
  *)
 type t
@@ -20,7 +15,7 @@ val make: string -> t
 (**
  * Execute a command on this editor and return the new state of the editor.
  *)
-val execute: t -> command -> t
+val execute: t -> EdCommand.t -> t
 
 (**
  * The error string that should be printed to std::out if in verbose mode
