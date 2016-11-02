@@ -287,8 +287,6 @@ module Parser = struct
     | "h" -> Complete Help
     | "H" -> Complete HelpToggle
 
-    | "g"
-    | "G"
     | "j"
     | "l"
     | "m"
@@ -300,10 +298,13 @@ module Parser = struct
     | "r"
     | "s"
     | "t"
-    | "v"
-    | "V"
     | "z"
     | "="
+
+    | "g"
+    | "G"
+    | "v"
+    | "V"
     | "" -> Complete (ParseError "Unimplemented command.")
     | x -> Complete (ParseError ("Invalid command string" ^ "\"" ^ x  ^ "\""))
 
@@ -331,8 +332,10 @@ module Parser = struct
           else Partial (Change (a, line :: lines))
 
       (* Parse the further global command *)
-      | Partial Global _ -> failwith "unimplemented"
-      | Partial ConverseGlobal _ -> failwith "unimplemented"
+      | Partial Global _ ->
+          Complete (ParseError "Unimplimented command")
+      | Partial ConverseGlobal _ ->
+          Complete (ParseError "Unimplimented command")
 
       (* all of these things should never have to parse more than once *)
       | Partial Delete _
