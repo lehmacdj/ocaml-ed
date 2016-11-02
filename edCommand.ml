@@ -287,24 +287,24 @@ module Parser = struct
     | "h" -> Complete Help
     | "H" -> Complete HelpToggle
 
-    | "g" -> failwith "unimplemented"
-    | "G" -> failwith "unimplemented"
-    | "j" -> failwith "unimplemented"
-    | "l" -> failwith "unimplemented"
-    | "m" -> failwith "unimplemented"
-    | "n" -> failwith "unimplemented"
-    | "p" -> failwith "unimplemented"
-    | "P" -> failwith "unimplemented"
-    | "q" -> failwith "unimplemented"
-    | "Q" -> failwith "unimplemented"
-    | "r" -> failwith "unimplemented"
-    | "s" -> failwith "unimplemented"
-    | "t" -> failwith "unimplemented"
-    | "v" -> failwith "unimplemented"
-    | "V" -> failwith "unimplemented"
-    | "z" -> failwith "unimplemented"
-    | "=" -> failwith "unimplemented"
-    | "" -> failwith "unimplemented"
+    | "g"
+    | "G"
+    | "j"
+    | "l"
+    | "m"
+    | "n"
+    | "p"
+    | "P"
+    | "q"
+    | "Q"
+    | "r"
+    | "s"
+    | "t"
+    | "v"
+    | "V"
+    | "z"
+    | "="
+    | "" -> Complete (ParseError "Unimplemented command.")
     | x -> Complete (ParseError ("Invalid command string" ^ "\"" ^ x  ^ "\""))
 
     (**
