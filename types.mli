@@ -11,6 +11,7 @@ type address =
   | FirstLine (** the first line in the buffer *)
   | Current (** the current line *)
   | Offset of int (** an offset from the current line *)
+  | OffsetFrom of int * int (** an offset from another line number *)
   | Line of int (** the line numbered line *)
   | LastLine (** the last line in the file *)
   | ForwardSearch of regex (** the first line from the current line that matches the regex *)

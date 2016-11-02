@@ -10,6 +10,10 @@ let string_of_address = function
   | FirstLine -> "1"
   | Current -> "."
   | Offset n -> string_of_int n
+  | OffsetFrom (l, n) ->
+      (string_of_int l) ^
+      (if n > 0 then "+" else "") ^
+      (string_of_int n)
   | Line n -> string_of_int n
   | ForwardSearch re -> "/" ^ re ^ "/"
   | BackwardSearch re -> "?" ^ re ^ "?"
@@ -164,9 +168,9 @@ module Parser = struct
     let args              = Array.get matches 5 |> Option.value ~default:"" in
 
     (* print a debugging view for what was parsed *)
-    Printf.printf "~parsed: [%S%s][%S][%S][%S]\n"
+    Printf.printf "~lexed: [%S%s][%S][%S][%S]\n"
         (Option.value ~default:"None" address_start)
-        (Option.value ~default:"$" address_separator)
+        (Option.value ~default:"$"    address_separator)
         (Option.value ~default:"None" address_primary)
         command
         args;
@@ -199,9 +203,10 @@ module Parser = struct
         _parse_address a2 ~default:default2 ~relative_to:FirstLine)
     | (a1, delim, a2) when delim = (Some ";") ->
         let addr1 = _parse_address a1 ~default:default1 ~relative_to:FirstLine in
-        (addr1, _parse_address a2 ~default:default2 ~relative_to:addr1)
+        let addr2 = _parse_address a2 ~default:default2 ~relative_to:a1 in
+        (addr1, addr2)
     | (_, Some delim, _) -> failwith ("invalid delimiter " ^ delim)
-    | (_, None, _) -> failwith ("no valid delimiter")
+    | (_, None, _)       -> failwith ("no valid delimiter")
 
   (* returns the filename to be used based on [args] *)
   let parse_filename args =
@@ -279,10 +284,11 @@ module Parser = struct
             filename))
         | Error message -> Complete (ParseError message))
 
+    | "h" -> Complete Help
+    | "H" -> Complete HelpToggle
+
     | "g" -> failwith "unimplemented"
     | "G" -> failwith "unimplemented"
-    | "H" -> failwith "unimplemented"
-    | "h" -> failwith "unimplemented"
     | "j" -> failwith "unimplemented"
     | "l" -> failwith "unimplemented"
     | "m" -> failwith "unimplemented"
@@ -328,6 +334,7 @@ module Parser = struct
       | Partial Global _ -> failwith "unimplemented"
       | Partial ConverseGlobal _ -> failwith "unimplemented"
 
+      (* all of these things should never have to parse more than once *)
       | Partial Delete _
       | Partial Edit _
       | Partial EditForce _
