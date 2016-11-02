@@ -23,13 +23,17 @@ let run filename =
     (fun _ ->
       (* TODO: not the actual behavior we want just a placeholder *)
       (* this works the arg of this function is the signal that was caught *)
+      print_newline ();
       exit 0
     ) in
   let rec edit editor =
+    let module E = Editor in
     let command = parse_command () in
-    let editor = Editor.execute editor command in
-    if Editor.verbose editor (* for now this will always be true *)
-    then print_endline (Editor.out_string editor)
-    else print_endline "?";
+    let (editor, response) = E.execute editor command in
+    (match response with
+    | E.Nothing -> ()
+    | E.UnknownError -> print_endline "?"
+    | E.ByteCount b -> print_endline (string_of_int b)
+    | E.EdError m   -> print_endline m);
     edit editor in
   edit @@ Editor.make filename
