@@ -29,7 +29,7 @@ type address_range = address * address
 type command =
   | Append of address * text
   | Change of address * text
-  | Delete of address
+  | Delete of address_range
   | Edit of filename
   | EditForce of filename
   | SetFile of filename
@@ -46,7 +46,7 @@ type command =
   | PromptToggle
   | Quit
   | QuitForce
-  | Read of filename
+  | Read of address * filename
   | Substitute of address_range * regex * string
   | Transfer of address_range * address
   | ConverseGlobal of address_range * regex * command

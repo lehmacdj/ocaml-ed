@@ -36,9 +36,9 @@ let rec to_string = function
       Printf.sprintf "%Sc\n    %s"
         (string_of_address address)
         (String.concat ~sep:"\n    " lines)
-  | Delete address ->
+  | Delete range ->
       Printf.sprintf "%Sd"
-          (string_of_address address)
+          (string_of_address_range range)
   | Edit filename ->
       Printf.sprintf "e %S"
           (string_of_filename filename)
@@ -82,8 +82,9 @@ let rec to_string = function
   | PromptToggle -> "P"
   | Quit -> "q"
   | QuitForce -> "Q"
-  | Read filename ->
-      Printf.sprintf "r %S"
+  | Read (address, filename) ->
+      Printf.sprintf "%Sr %S"
+          (string_of_address address)
           (string_of_filename filename)
   | Substitute (address_range, regex, substitution) ->
       Printf.sprintf "%Ss/%S/%S/"
@@ -168,7 +169,7 @@ module Parser = struct
     let args              = Array.get matches 5 |> Option.value ~default:"" in
 
     (* print a debugging view for what was parsed *)
-    Printf.printf "~lexed: [%S%s][%S][%S][%S]\n"
+    Printf.printf "~lexed: [%S][%s][%S][%S][%S]\n"
         (Option.value ~default:"None" address_start)
         (Option.value ~default:"$"    address_separator)
         (Option.value ~default:"None" address_primary)
@@ -183,14 +184,14 @@ module Parser = struct
     let poffset = Re2.create_exn "[-^]" in
     let noffset = Re2.create_exn "\\+" in
     match address with
-    | None -> default
-    | Some s when s = "1"               -> FirstLine
-    | Some s when s = "."               -> Current
-    | Some s when s = "$"               -> LastLine
-    | Some s when Re2.matches num s     -> Line (int_of_string s)
-    | Some s when Re2.matches poffset s -> Offset (-1)
-    | Some s when Re2.matches noffset s -> Offset (+1)
-    | Some s                            -> failwith "cannot parse this address"
+    | None                              -> Some default
+    | Some s when s = "1"               -> Some (FirstLine)
+    | Some s when s = "."               -> Some (Current)
+    | Some s when s = "$"               -> Some (LastLine)
+    | Some s when Re2.matches num s     -> Some (Line (int_of_string s))
+    | Some s when Re2.matches poffset s -> Some (Offset (-1))
+    | Some s when Re2.matches noffset s -> Some (Offset (+1))
+    | Some s                            -> None
 
   (** return an address based on an address string and a default address *)
   let parse_address = _parse_address ~relative_to:FirstLine
@@ -199,14 +200,15 @@ module Parser = struct
   let parse_address_range addr1 delim addr2 ~default1 ~default2 =
     match addr1, delim, addr2 with
     | (a1, delim, a2) when delim = (Some ",") ->
-        (_parse_address a1 ~default:default1 ~relative_to:FirstLine,
-        _parse_address a2 ~default:default2 ~relative_to:FirstLine)
+        let addr1 = _parse_address a1 ~default:default1 ~relative_to:FirstLine in
+        let addr2 = _parse_address a2 ~default:default2 ~relative_to:FirstLine in
+        Option.both addr1 addr2
     | (a1, delim, a2) when delim = (Some ";") ->
         let addr1 = _parse_address a1 ~default:default1 ~relative_to:FirstLine in
         let addr2 = _parse_address a2 ~default:default2 ~relative_to:a1 in
-        (addr1, addr2)
-    | (_, Some delim, _) -> failwith ("invalid delimiter " ^ delim)
-    | (_, None, _)       -> failwith ("no valid delimiter")
+        Option.both addr1 addr2
+    | (_, Some _, _) -> None
+    | (_, None, _)   -> None
 
   (* returns the filename to be used based on [args] *)
   let parse_filename args =
@@ -238,74 +240,141 @@ module Parser = struct
       then Complete (ParseError "invalid command suffix")
       else command in
 
-    let addr_or_current = parse_address ~default:Current in
+    let addr_or_current = parse_address
+        address_primary
+        ~default:Current in
+
+    let range_or_current = parse_address_range
+        address_start
+        address_separator
+        address_primary
+        ~default1:Current
+        ~default2:Current in
+
+    let range_or_buffer = parse_address_range
+        address_start
+        address_separator
+        address_primary
+        ~default1:FirstLine
+        ~default2:LastLine in
+
+    let invalid_address_error = Complete (ParseError "invalid address") in
+
+    let filename = parse_filename args in
 
     (* match the command string to return the command type object *)
     match command with
+    (* editing commands *)
     | "a" -> check_command_suffix args
-        (Partial (Append (addr_or_current address_primary, [])))
+        (match addr_or_current with
+        | Some addr -> (Partial (Append (addr, [])))
+        | None -> invalid_address_error)
     | "c" -> check_command_suffix args
-        (Partial (Change (addr_or_current address_primary, [])))
+        (match addr_or_current with
+        | Some addr -> (Partial (Change (addr, [])))
+        | None -> invalid_address_error)
     | "i" -> check_command_suffix args
-        (Partial (Insert (addr_or_current address_primary, [])))
-    | "d" -> Complete (Delete (addr_or_current address_primary))
+        (match addr_or_current with
+        | Some addr -> (Partial (Insert (addr, [])))
+        | None -> invalid_address_error)
+    | "d" ->
+        (match range_or_current with
+        | Some range -> (Complete (Delete range))
+        | None -> invalid_address_error)
+    | "j" -> check_command_suffix args
+        (match range_or_current with
+        | Some range -> (Complete (Join range))
+        | None -> invalid_address_error)
 
-    (* filename operations *)
+    (* printing commands *)
+    | "l" -> check_command_suffix args
+        (match range_or_current with
+        | Some range -> (Complete (List range))
+        | None -> invalid_address_error)
+    | "n" -> check_command_suffix args
+        (match range_or_current with
+        | Some range -> (Complete (Number range))
+        | None -> invalid_address_error)
+    | "p" -> check_command_suffix args
+        (match range_or_current with
+        | Some range -> (Complete (Print range))
+        | None -> invalid_address_error)
+    | "" -> check_command_suffix args
+        (match addr_or_current with
+        | Some addr -> (Complete (Goto addr))
+        | None -> invalid_address_error)
+    | "=" -> check_command_suffix args
+        (match addr_or_current with
+        | Some addr -> (Complete (LineNumber addr))
+        | None -> invalid_address_error)
+
+
+    (* file operations *)
     | "e" ->
-        (match parse_filename args with
+        (match filename with
         | Ok filename -> Complete (Edit filename)
         | Error message -> Complete (ParseError message))
     | "f" ->
-        (match parse_filename args with
+        (match filename with
         | Ok filename -> Complete (SetFile filename)
         | Error message -> Complete (ParseError message))
 
     (* write operations *)
     | "w" ->
-        (match parse_filename args with
-        | Ok filename -> Complete (Write (
-            (parse_address_range
-                address_start
-                address_separator
-                address_primary
-                ~default1:FirstLine
-                ~default2:LastLine),
-            filename))
+        (match filename with
+        | Ok filename ->
+            (match range_or_buffer with
+            | Some range -> Complete (Write (range, filename))
+            | None -> invalid_address_error)
         | Error message -> Complete (ParseError message))
     | "W" ->
-        (match parse_filename args with
-        | Ok filename -> Complete (WriteAppend (
-            (parse_address_range
-                address_start
-                address_separator
-                address_primary
-                ~default1:FirstLine
-                ~default2:LastLine),
-            filename))
+        (match filename with
+        | Ok filename ->
+            (match range_or_buffer with
+            | Some range -> Complete (WriteAppend (range, filename))
+            | None -> invalid_address_error)
+        | Error message -> Complete (ParseError message))
+    (* read *)
+    | "r" ->
+        (match filename with
+        | Ok filename ->
+            (match addr_or_current with
+            | Some addr -> Complete (Read (addr, filename))
+            | None -> invalid_address_error)
         | Error message -> Complete (ParseError message))
 
-    | "h" -> Complete Help
-    | "H" -> Complete HelpToggle
-
-    | "j"
-    | "l"
+    (* 3 address *)
     | "m"
-    | "n"
-    | "p"
-    | "P"
-    | "q"
-    | "Q"
-    | "r"
-    | "s"
     | "t"
-    | "z"
-    | "="
 
+    (* help commands *)
+    | "h" ->
+        check_command_suffix args
+        (Complete Help)
+    | "H" -> check_command_suffix args
+        (Complete HelpToggle)
+    (* quit operations *)
+    | "q" -> check_command_suffix args
+        (Complete Quit)
+    | "Q" -> check_command_suffix args
+        (Complete QuitForce)
+    (* toggle prompt *)
+    | "P" -> check_command_suffix args
+        (Complete PromptToggle)
+
+    | "z" -> check_command_suffix args
+        (* TODO: parse the line number to be correct *)
+        (match addr_or_current with
+        | Some addr -> Complete (Scroll (addr, 1))
+        | None -> invalid_address_error)
+
+    (* hard commands *)
     | "g"
     | "G"
     | "v"
     | "V"
-    | "" -> Complete (ParseError "Unimplemented command.")
+    | "s" -> Complete (ParseError "Unimplemented command.")
+
     | x -> Complete (ParseError ("Invalid command string" ^ "\"" ^ x  ^ "\""))
 
     (**
@@ -363,7 +432,7 @@ module Parser = struct
       | Partial Write _
       | Partial WriteAppend _
       | Partial ParseError _
-      | Complete _ -> failwith "should never occur"
+      | Complete _ -> failwith "this should never occur"
 
     let finish = function
       | Empty
