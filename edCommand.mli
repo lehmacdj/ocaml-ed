@@ -1,5 +1,6 @@
 (** Handles the parsing of all of the text passed into the text editor. *)
 
+open Core.Std
 open Types
 
 (** The type is a command *)
@@ -20,5 +21,5 @@ module Parser: sig
   val parse_line: parse_state -> string -> parse_state
 
   (** turns a unfinished command into a completed command *)
-  val finish: parse_state -> t option
+  val finish: parse_state -> (t, exn) Result.t option
 end

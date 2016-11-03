@@ -122,16 +122,22 @@ let rec to_string = function
   | Goto address ->
       Printf.sprintf "%S"
           (string_of_address address)
-  | ParseError message ->
-      Printf.sprintf "ParseError: %s"
-          message
 
 (** Used to create instances of command *)
 module Parser = struct
-  type parse_state =
+  exception InvalidAddressRange
+  exception InvalidAddress
+  exception InvalidCommandSuffix
+  exception IncompleteCommand
+  exception Unimplemented
+  exception InvalidFileName
+
+  type command_state =
     | Empty
     | Partial of t
     | Complete of t
+
+  type parse_state = (command_state, exn) Result.t
 
   (*
    * the initial parse state
@@ -184,14 +190,14 @@ module Parser = struct
     let poffset = Re2.create_exn "[-^]" in
     let noffset = Re2.create_exn "\\+" in
     match address with
-    | None                              -> Some default
-    | Some s when s = "1"               -> Some (FirstLine)
-    | Some s when s = "."               -> Some (Current)
-    | Some s when s = "$"               -> Some (LastLine)
-    | Some s when Re2.matches num s     -> Some (Line (int_of_string s))
-    | Some s when Re2.matches poffset s -> Some (Offset (-1))
-    | Some s when Re2.matches noffset s -> Some (Offset (+1))
-    | Some s                            -> None
+    | None                              -> Ok default
+    | Some s when s = "1"               -> Ok (FirstLine)
+    | Some s when s = "."               -> Ok (Current)
+    | Some s when s = "$"               -> Ok (LastLine)
+    | Some s when Re2.matches num s     -> Ok (Line (int_of_string s))
+    | Some s when Re2.matches poffset s -> Ok (Offset (-1))
+    | Some s when Re2.matches noffset s -> Ok (Offset (+1))
+    | Some s                            -> Error InvalidAddress
 
   (** return an address based on an address string and a default address *)
   let parse_address = _parse_address ~relative_to:FirstLine
@@ -202,26 +208,32 @@ module Parser = struct
     | (a1, delim, a2) when delim = (Some ",") ->
         let addr1 = _parse_address a1 ~default:default1 ~relative_to:FirstLine in
         let addr2 = _parse_address a2 ~default:default2 ~relative_to:FirstLine in
-        Option.both addr1 addr2
+        Option.value_map
+            (Option.both (Result.ok addr1) (Result.ok addr2))
+            ~default:(Error InvalidAddressRange)
+            ~f:(fun v -> Ok v)
     | (a1, delim, a2) when delim = (Some ";") ->
         let addr1 = _parse_address a1 ~default:default1 ~relative_to:FirstLine in
         let addr2 = _parse_address a2 ~default:default2 ~relative_to:a1 in
-        Option.both addr1 addr2
-    | (_, Some _, _) -> None
-    | (_, None, _)   -> None
+        Option.value_map
+            (Option.both (Result.ok addr1) (Result.ok addr2))
+            ~default:(Error InvalidAddressRange)
+            ~f:(fun v -> Ok v)
+    | (_, Some _, _)
+    | (_, None, _)   -> Error InvalidAddressRange
 
   (* returns the filename to be used based on [args] *)
   let parse_filename args =
     let re = Re2.create_exn " (!)?(.*)" in
     match Re2.find_submatches re args with
-    | Error _ -> Error "unexpected command suffix"
+    | Error _ -> Error InvalidCommandSuffix
     | Ok matches ->
         (match (Array.get matches 1, Array.get matches 2) with
         | None, None -> Ok (ThisFile)
         | None, Some name -> Ok (File name)
         | Some "!", Some name -> Ok (Command name)
         | Some _, None
-        | Some _, Some _ -> Error "invalid file name")
+        | Some _, Some _ -> Error InvalidFileName)
 
   (**
    * Separate the addresses, command and args. Effectively the main parser of the
@@ -235,10 +247,10 @@ module Parser = struct
          command, args) = lex_first line in
 
     (* returns an error or [command] based on [args] *)
-    let check_command_suffix args command =
+    let validate_command_suffix command =
       if args <> ""
-      then Complete (ParseError "invalid command suffix")
-      else command in
+      then Error InvalidCommandSuffix
+      else Ok command in
 
     let addr_or_current = parse_address
         address_primary
@@ -258,90 +270,68 @@ module Parser = struct
         ~default1:FirstLine
         ~default2:LastLine in
 
-    let invalid_address_error = Complete (ParseError "invalid address") in
-
     let filename = parse_filename args in
 
     (* match the command string to return the command type object *)
+    let open Result.Monad_infix in
     match command with
     (* editing commands *)
-    | "a" -> check_command_suffix args
-        (match addr_or_current with
-        | Some addr -> (Partial (Append (addr, [])))
-        | None -> invalid_address_error)
-    | "c" -> check_command_suffix args
-        (match addr_or_current with
-        | Some addr -> (Partial (Change (addr, [])))
-        | None -> invalid_address_error)
-    | "i" -> check_command_suffix args
-        (match addr_or_current with
-        | Some addr -> (Partial (Insert (addr, [])))
-        | None -> invalid_address_error)
+    | "a" ->
+        addr_or_current >>= fun addr ->
+        validate_command_suffix (Partial (Change (addr, [])))
+    | "c" ->
+        addr_or_current >>= fun addr ->
+        validate_command_suffix (Partial (Change (addr, [])))
+    | "i" ->
+        addr_or_current >>= fun addr ->
+        validate_command_suffix (Partial (Insert (addr, [])))
     | "d" ->
-        (match range_or_current with
-        | Some range -> (Complete (Delete range))
-        | None -> invalid_address_error)
-    | "j" -> check_command_suffix args
-        (match range_or_current with
-        | Some range -> (Complete (Join range))
-        | None -> invalid_address_error)
+        range_or_current >>= fun range ->
+        validate_command_suffix (Complete (Delete range))
+    | "j" ->
+        range_or_current >>= fun range ->
+        validate_command_suffix (Complete (Join range))
 
     (* printing commands *)
-    | "l" -> check_command_suffix args
-        (match range_or_current with
-        | Some range -> (Complete (List range))
-        | None -> invalid_address_error)
-    | "n" -> check_command_suffix args
-        (match range_or_current with
-        | Some range -> (Complete (Number range))
-        | None -> invalid_address_error)
-    | "p" -> check_command_suffix args
-        (match range_or_current with
-        | Some range -> (Complete (Print range))
-        | None -> invalid_address_error)
-    | "" -> check_command_suffix args
-        (match addr_or_current with
-        | Some addr -> (Complete (Goto addr))
-        | None -> invalid_address_error)
-    | "=" -> check_command_suffix args
-        (match addr_or_current with
-        | Some addr -> (Complete (LineNumber addr))
-        | None -> invalid_address_error)
+    | "l" ->
+        range_or_current >>= fun range ->
+        validate_command_suffix (Complete (List range))
+    | "n" ->
+        range_or_current >>= fun range ->
+        validate_command_suffix (Complete (Number range))
+    | "p" ->
+        range_or_current >>= fun range ->
+        validate_command_suffix (Complete (Print range))
+    | "" ->
+        addr_or_current >>= fun addr ->
+        validate_command_suffix (Complete (Goto addr))
+    | "=" ->
+        addr_or_current >>= fun addr ->
+        validate_command_suffix (Complete (LineNumber addr))
 
 
     (* file operations *)
     | "e" ->
-        (match filename with
-        | Ok filename -> Complete (Edit filename)
-        | Error message -> Complete (ParseError message))
+        filename >>= fun filename ->
+        Ok (Complete (Edit filename))
     | "f" ->
-        (match filename with
-        | Ok filename -> Complete (SetFile filename)
-        | Error message -> Complete (ParseError message))
+        filename >>= fun filename ->
+        Ok (Complete (SetFile filename))
 
     (* write operations *)
     | "w" ->
-        (match filename with
-        | Ok filename ->
-            (match range_or_buffer with
-            | Some range -> Complete (Write (range, filename))
-            | None -> invalid_address_error)
-        | Error message -> Complete (ParseError message))
+        filename >>= fun filename ->
+        range_or_buffer >>= fun range ->
+        Ok (Complete (Write (range, filename)))
     | "W" ->
-        (match filename with
-        | Ok filename ->
-            (match range_or_buffer with
-            | Some range -> Complete (WriteAppend (range, filename))
-            | None -> invalid_address_error)
-        | Error message -> Complete (ParseError message))
+        filename >>= fun filename ->
+        range_or_buffer >>= fun range ->
+        Ok (Complete (WriteAppend (range, filename)))
     (* read *)
     | "r" ->
-        (match filename with
-        | Ok filename ->
-            (match addr_or_current with
-            | Some addr -> Complete (Read (addr, filename))
-            | None -> invalid_address_error)
-        | Error message -> Complete (ParseError message))
+        filename >>= fun filename ->
+        addr_or_current >>= fun addr ->
+        Ok (Complete (Read (addr, filename)))
 
     (* 3 address *)
     | "m"
@@ -349,33 +339,31 @@ module Parser = struct
 
     (* help commands *)
     | "h" ->
-        check_command_suffix args
-        (Complete Help)
-    | "H" -> check_command_suffix args
-        (Complete HelpToggle)
+        validate_command_suffix (Complete Help)
+    | "H" ->
+        validate_command_suffix (Complete HelpToggle)
     (* quit operations *)
-    | "q" -> check_command_suffix args
-        (Complete Quit)
-    | "Q" -> check_command_suffix args
-        (Complete QuitForce)
+    | "q" ->
+        validate_command_suffix (Complete Quit)
+    | "Q" ->
+        validate_command_suffix (Complete QuitForce)
     (* toggle prompt *)
-    | "P" -> check_command_suffix args
-        (Complete PromptToggle)
+    | "P" ->
+        validate_command_suffix (Complete PromptToggle)
 
-    | "z" -> check_command_suffix args
+    | "z" ->
         (* TODO: parse the line number to be correct *)
-        (match addr_or_current with
-        | Some addr -> Complete (Scroll (addr, 1))
-        | None -> invalid_address_error)
+        addr_or_current >>= fun addr ->
+        validate_command_suffix (Complete (Scroll (addr, 1)))
 
     (* hard commands *)
     | "g"
     | "G"
     | "v"
     | "V"
-    | "s" -> Complete (ParseError "Unimplemented command.")
+    | "s" -> Error Unimplemented
 
-    | x -> Complete (ParseError ("Invalid command string" ^ "\"" ^ x  ^ "\""))
+    | x -> failwith "this should never occur"
 
     (**
      * finds the next state based on the previous state
@@ -384,27 +372,29 @@ module Parser = struct
      * - complete commands are not changed
      *)
     let parse_line state line =
+      let open Result.Monad_infix in
+      state >>= fun state ->
       match state with
       | Empty ->
           parse_first line
       | Partial Append (a, lines) ->
           if line = "."
-          then Complete (Append (a, lines))
-          else Partial (Append (a, line :: lines))
+          then Ok (Complete (Append (a, lines)))
+          else Ok (Partial (Append (a, line :: lines)))
       | Partial Change (a, lines) ->
           if line = "."
-          then Complete (Change (a, lines))
-          else Partial (Change (a, line :: lines))
+          then Ok (Complete (Change (a, lines)))
+          else Ok (Partial (Change (a, line :: lines)))
       | Partial Insert (a, lines) ->
           if line = "."
-          then Complete (Insert (a, lines))
-          else Partial (Change (a, line :: lines))
+          then Ok (Complete (Insert (a, lines)))
+          else Ok (Partial (Change (a, line :: lines)))
 
       (* Parse the further global command *)
       | Partial Global _ ->
-          Complete (ParseError "Unimplimented command")
+          Error Unimplemented
       | Partial ConverseGlobal _ ->
-          Complete (ParseError "Unimplimented command")
+          Error Unimplemented
 
       (* all of these things should never have to parse more than once *)
       | Partial Delete _
@@ -431,11 +421,10 @@ module Parser = struct
       | Partial Transfer _
       | Partial Write _
       | Partial WriteAppend _
-      | Partial ParseError _
       | Complete _ -> failwith "this should never occur"
 
     let finish = function
       | Empty
-      | Partial _ -> None
-      | Complete c -> Some c
+      | Partial _ -> Error IncompleteCommand
+      | Complete c -> Ok c
 end

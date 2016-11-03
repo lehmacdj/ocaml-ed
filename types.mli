@@ -56,4 +56,3 @@ type command =
   | Scroll of address * int
   | LineNumber of address
   | Goto of address
-  | ParseError of string
