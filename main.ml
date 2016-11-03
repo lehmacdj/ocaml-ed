@@ -32,8 +32,10 @@ let run filename =
     let (editor, response) = E.execute editor command in
     (match response with
     | E.Nothing -> ()
-    | E.UnknownError -> print_endline "?"
+    | E.UnspecifiedError -> print_endline "?"
     | E.ByteCount b -> print_endline (string_of_int b)
     | E.EdError m   -> print_endline m);
-    edit editor in
+    if E.running editor
+    then edit editor
+    else () in
   edit @@ Editor.make filename

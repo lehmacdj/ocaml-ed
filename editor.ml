@@ -14,7 +14,7 @@ type editor_state =
 
 type editor_response =
   | Nothing
-  | UnknownError
+  | UnspecifiedError
   | EdError of string
   | ByteCount of int
 
@@ -28,6 +28,7 @@ type t = {
   error: string option; (** The output string *)
   line: int; (** The current line number *)
   state: editor_state; (** the state of the editor *)
+  running: bool; (** is the editor running *)
 }
 
 let make name =
@@ -39,6 +40,7 @@ let make name =
       error = None;
       line = 1;
       state = ReadyForCommand;
+      running = true;
     }
   else
     {
@@ -48,18 +50,22 @@ let make name =
       error = None;
       line = 1;
       state = ReadyForCommand;
+      running = true;
     }
+
+let running editor =
+  editor.running
 
 (*
  * The default response for the editor. returns a editor_response that is either
- * nothing if there is no error, UnknownError if the editor is not in verbose
- * mode and EdError editor.output if the editor is in verbose mode.
+ * nothing if there is no error, UnspecifiedError if the editor is not in
+ * verbose mode and EdError editor.output if the editor is in verbose mode.
  *)
 let default_response editor =
   match editor.error with
   | None                       -> Nothing
   | Some s when editor.verbose -> EdError s
-  | Some _                     -> UnknownError
+  | Some _                     -> UnspecifiedError
 
 (**
  * execute [command] on [editor] and return the new editor
@@ -67,13 +73,21 @@ let default_response editor =
 let execute editor command =
   match command with
   | Help ->
-      (editor,
-      EdError (Option.value ~default:"invalid address" editor.error))
+      (editor, EdError (Option.value ~default:"no error" editor.error))
   | HelpToggle ->
-      ({editor with verbose = not editor.verbose},
-      match editor.error with
-      | None -> Nothing
-      | Some s -> EdError s)
+      let editor = {editor with verbose = not editor.verbose} in
+      (editor, default_response editor)
+  | ParseError message ->
+      let editor = {editor with error = Some message} in
+      (editor, default_response editor)
+  | Edit name
+  | EditForce name ->
+      let editor = {editor with buffer = FileBuffer.set_name editor.buffer "test_name!"} in
+      (editor, default_response editor)
+  | Quit (* TODO: add state to make sure modifications are saved *)
+  | QuitForce ->
+      let editor = {editor with running = false} in
+      (editor, Nothing)
   | _ ->
       ({editor with error = Some (EdCommand.to_string command)},
       default_response editor)

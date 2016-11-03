@@ -28,6 +28,9 @@ let make = function
       | `Unknown ->
           failwith @@ "File " ^ name ^ "is at an unknown location"
 
+let set_name (_, text, count) name =
+  (Some name, text, count)
+
 let get (_, text, _) line =
   List.nth text line
 

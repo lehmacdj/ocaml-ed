@@ -15,6 +15,11 @@ type t
 val make: string option -> t
 
 (**
+ * Return a buffer with name changed
+ *)
+val set_name: t -> string -> t
+
+(**
  * Returns the line of text given by the line number. Returns None if that line
  * is out of range for the buffer.
  *)
