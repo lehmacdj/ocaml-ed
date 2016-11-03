@@ -11,7 +11,7 @@ oed:
 	$(CC) $(PACKAGES) oed.byte
 
 clean:
-	$(CC) -clean
+	$(CC) -clean >/dev/null
 	@rm -rf test/_build/
 
 mli:
