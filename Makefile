@@ -14,9 +14,10 @@ clean:
 	$(CC) -clean >/dev/null
 	@rm -rf test/_build/
 
+INTERFACES=edCommand.cmi editor.cmi fileBuffer.cmi main.cmi types.cmi
+
 mli:
-	ocamlc -I _build/ *.mli
-	@mv *.cmi _build/
+	corebuild $(INTERFACES)
 
 tests:
 	$(CC) -Is .,test -package ounit $(PACKAGES) edCommand_test.byte >/dev/null 2>&1
