@@ -36,7 +36,7 @@ let make name =
     {
       buffer = FileBuffer.make None;
       undo = ();
-      verbose = false;
+      verbose = true; (* XXX: should start as false *)
       error = None;
       line = 1;
       state = ReadyForCommand;
@@ -46,7 +46,7 @@ let make name =
     {
       buffer = FileBuffer.make (Some name);
       undo = ();
-      verbose = false;
+      verbose = true; (* XXX: should start as false *)
       error = None;
       line = 1;
       state = ReadyForCommand;
@@ -77,9 +77,6 @@ let execute editor command =
   | HelpToggle ->
       let editor = {editor with verbose = not editor.verbose} in
       (editor, default_response editor)
-  | ParseError message ->
-      let editor = {editor with error = Some message} in
-      (editor, default_response editor)
   | Edit name
   | EditForce name ->
       let editor = {editor with buffer = FileBuffer.set_name editor.buffer "test_name!"} in
@@ -91,3 +88,8 @@ let execute editor command =
   | _ ->
       ({editor with error = Some (EdCommand.to_string command)},
       default_response editor)
+
+let response editor ~parse_error:error =
+  if editor.verbose
+  then EdError (EdParser.string_of_parse_error error)
+  else UnspecifiedError

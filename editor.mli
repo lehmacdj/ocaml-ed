@@ -30,3 +30,8 @@ val running: t -> bool
  * Execute a command on this editor and return the new state of the editor.
  *)
 val execute: t -> EdCommand.t -> t * editor_response
+
+(**
+ * Return the editor response for a parse error current state of the editor.
+ *)
+val response: t -> parse_error:EdParser.parse_error -> editor_response

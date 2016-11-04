@@ -7,12 +7,12 @@ open Core.Std
  * Get a complete command from std::in
  *)
 let parse_command () =
-  let open EdCommand.Parser in
+  let module P = EdParser in
   let rec helper command =
-    match finish command with
-    | None -> helper (parse_line command (read_line ()))
+    match P.finish command with
+    | None -> helper (P.parse_line command (read_line ()))
     | Some c -> c in
-  helper initial
+  helper P.initial
 
 (*
  * The main function of the program. Logic for input and output goes here along
@@ -26,16 +26,33 @@ let run filename =
       print_newline ();
       exit 0
     ) in
+
   let rec edit editor =
     let module E = Editor in
-    let command = parse_command () in
-    let (editor, response) = E.execute editor command in
-    (match response with
-    | E.Nothing -> ()
-    | E.UnspecifiedError -> print_endline "?"
-    | E.ByteCount b -> print_endline (string_of_int b)
-    | E.EdError m   -> print_endline m);
+
+    (* apply a command *)
+    let (editor, response) =
+      match parse_command () with
+      | Ok command ->
+          E.execute editor command
+      | Error e ->
+          (editor, E.response editor ~parse_error:e) in
+
+    (* output the necessary response *)
+    match response with
+    | E.Nothing ->
+        ()
+    | E.UnspecifiedError ->
+        print_endline "?"
+    | E.ByteCount b ->
+        print_endline "?";
+        print_endline (string_of_int b)
+    | E.EdError m   ->
+        print_endline m;
+
+    (* determine whether or not to keep running *)
     if E.running editor
     then edit editor
     else () in
+
   edit @@ Editor.make filename
