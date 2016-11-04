@@ -56,6 +56,25 @@ let make name =
 let running editor =
   editor.running
 
+let rec int_of_address editor = function
+  | FirstLine
+  | Current -> failwith "failure"
+  | Line n -> failwith "failure"
+  | LastLine -> FileBuffer.lines editor.buffer
+  | ForwardSearch re ->
+      FileBuffer.find
+        editor.buffer
+        editor.line
+        re
+        ~direction:FileBuffer.Forward
+  | BackwardSearch re ->
+      FileBuffer.find
+        editor.buffer
+        editor.line
+        re
+        ~direction:FileBuffer.Backward
+  | Offset (address, i) -> i + (int_of_address editor address)
+
 (*
  * The default response for the editor. returns a editor_response that is either
  * nothing if there is no error, UnspecifiedError if the editor is not in
@@ -71,7 +90,13 @@ let default_response editor =
  * execute [command] on [editor] and return the new editor
  *)
 let execute editor command =
+  print_string "~parsed: ";
+  print_endline @@ EdCommand.to_string command;
   match command with
+  | Append (text, addr)
+  | Insert (text, addr) -> failwith "unimplemented"
+  | Change (text, addr) -> failwith "unimplemented"
+  | Delete (text, addr) -> failwith "unimplemented"
   | Help ->
       (editor, EdError (Option.value ~default:"no error" editor.error))
   | HelpToggle ->

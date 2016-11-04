@@ -74,6 +74,7 @@ let lex_first line =
 (** a base function for parse address *)
 let _parse_address address ~default ~relative_to =
   let num = Re2.create_exn "\\d*" in
+  (* TODO: make offsets work with arbitrary numbers and arbitrary primary addresses *)
   let poffset = Re2.create_exn "[-^]" in
   let noffset = Re2.create_exn "\\+" in
   match address with
@@ -82,8 +83,8 @@ let _parse_address address ~default ~relative_to =
   | Some s when s = "."               -> Ok (Current)
   | Some s when s = "$"               -> Ok (LastLine)
   | Some s when Re2.matches num s     -> Ok (Line (int_of_string s))
-  | Some s when Re2.matches poffset s -> Ok (Offset (-1))
-  | Some s when Re2.matches noffset s -> Ok (Offset (+1))
+  | Some s when Re2.matches poffset s -> Ok (Offset (Current, -1))
+  | Some s when Re2.matches noffset s -> Ok (Offset (Current, +1))
   | Some s                            -> Error InvalidAddress
 
 (** return an address based on an address string and a default address *)
@@ -165,10 +166,10 @@ let parse_first line =
   (* editing commands *)
   | "a" ->
       addr_or_current >>= fun addr ->
-      validate_command_suffix (Partial (Change (addr, [])))
+      validate_command_suffix (Partial (Append (addr, [])))
   | "c" ->
-      addr_or_current >>= fun addr ->
-      validate_command_suffix (Partial (Change (addr, [])))
+      range_or_current >>= fun range ->
+      validate_command_suffix (Partial (Change (range, [])))
   | "i" ->
       addr_or_current >>= fun addr ->
       validate_command_suffix (Partial (Insert (addr, [])))
@@ -268,14 +269,14 @@ let parse_first line =
         if line = "."
         then Ok (Complete (Append (a, lines)))
         else Ok (Partial (Append (a, line :: lines)))
-    | Partial Change (a, lines) ->
+    | Partial Change (r, lines) ->
         if line = "."
-        then Ok (Complete (Change (a, lines)))
-        else Ok (Partial (Change (a, line :: lines)))
+        then Ok (Complete (Change (r, lines)))
+        else Ok (Partial (Change (r, line :: lines)))
     | Partial Insert (a, lines) ->
         if line = "."
         then Ok (Complete (Insert (a, lines)))
-        else Ok (Partial (Change (a, line :: lines)))
+        else Ok (Partial (Insert (a, line :: lines)))
 
     (* Parse the further global command *)
     | Partial Global _ ->

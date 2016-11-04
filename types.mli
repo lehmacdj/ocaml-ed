@@ -10,12 +10,11 @@ type regex = string
 type address =
   | FirstLine (** the first line in the buffer *)
   | Current (** the current line *)
-  | Offset of int (** an offset from the current line *)
-  | OffsetFrom of int * int (** an offset from another line number *)
   | Line of int (** the line numbered line *)
   | LastLine (** the last line in the file *)
   | ForwardSearch of regex (** the first line from the current line that matches the regex *)
   | BackwardSearch of regex (** the previous line from the current line that matches the regex *)
+  | Offset of address * int (** offset from specified address *)
 
 (**
  * A pair of address used as a parameter type for some methods
@@ -28,7 +27,7 @@ type address_range = address * address
  *)
 type command =
   | Append of address * text
-  | Change of address * text
+  | Change of address_range * text
   | Delete of address_range
   | Edit of filename
   | EditForce of filename

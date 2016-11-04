@@ -6,12 +6,11 @@ open Types
 
 type t = command
 
-let string_of_address = function
+let rec string_of_address = function
   | FirstLine -> "1"
   | Current -> "."
-  | Offset n -> string_of_int n
-  | OffsetFrom (l, n) ->
-      (string_of_int l) ^
+  | Offset (addr, n) ->
+      (string_of_address addr) ^
       (if n > 0 then "+" else "") ^
       (string_of_int n)
   | Line n -> string_of_int n
@@ -32,9 +31,9 @@ let rec to_string = function
       Printf.sprintf "%Sa\n    %s"
           (string_of_address address)
           (String.concat ~sep:"\n    " lines)
-  | Change (address, lines) ->
+  | Change (range, lines) ->
       Printf.sprintf "%Sc\n    %s"
-        (string_of_address address)
+        (string_of_address_range range)
         (String.concat ~sep:"\n    " lines)
   | Delete range ->
       Printf.sprintf "%Sd"

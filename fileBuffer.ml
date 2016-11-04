@@ -19,8 +19,8 @@ let make = function
       match Sys.file_exists name with
       | `Yes ->
           let file = In_channel.create name in
-          let text = protect ~f:(fun () ->
-              In_channel.input_lines file)
+          let text = protect
+            ~f:(fun () -> In_channel.input_lines file)
             ~finally:(fun () -> In_channel.close file) in
           (Some name, text, 0)
       | `No ->
@@ -34,12 +34,24 @@ let set_name (_, text, count) name =
 let get (_, text, _) line =
   List.nth text line
 
-let write (name, text, _) ?(range = (FirstLine, LastLine)) =
+let lines (_, _, count) = count
+
+let write (name, text, _) range =
   match name with
   | None ->
       failwith "filename is undefined"
   | Some name ->
       Out_channel.write_lines name text
+
+let delete (name, text, count) ~range:(start, stop) =
+  let text = List.filter_mapi
+    ~f:(fun i e ->
+      if i < start || i > stop
+      then Some e
+      else None)
+    text in
+  let count = count - stop + start in
+  (name, text, count)
 
 (**
  * Cycles a list. This is equivalent to making the element at indexed the first
@@ -55,7 +67,7 @@ type search_direction =
   | Backward
 
 (* TODO: ensure that regex matching is the right regex matching for ed *)
-let find (_, lines, count) current regex direction =
+let find (_, lines, count) current regex ~direction =
   let re = match Re2.create ~options:[] (Re2.escape regex) with
     | Ok re -> re
     | Error _ -> failwith ("Invalid regex while searching: " ^ regex) in

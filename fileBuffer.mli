@@ -26,12 +26,23 @@ val set_name: t -> string -> t
 val get: t -> int -> string option
 
 (**
- * Writes the file to the filesytem.
+ * Writes the file to the filesytem. Does not affect the buffer in any other
+ * way.
  *)
-val write: t -> ?range:address_range -> unit
+val write: t -> address_range -> unit
+
+(** Return the number of lines in the FileBuffer *)
+val lines: t -> int
 
 (**
- * The direction to search through the buffer
+ * Delete the lines specified by range (inclusive) from the file.
+ * Precondition: range must be a pair of integers with the first smaller than
+ * the second, otherwise behavior is undefined
+ *)
+val delete: t -> range:(int * int) -> t
+
+(**
+ * The direction to search through the buffer.
  *)
 type search_direction =
   | Forward (** Search forward through the buffer to lines past the current *)
@@ -40,4 +51,4 @@ type search_direction =
 (**
  * Returns the next line of text that after or before the current line marker.
  *)
-val find: t -> int -> string -> search_direction -> int
+val find: t -> int -> string -> direction:search_direction -> int
