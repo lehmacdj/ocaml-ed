@@ -14,7 +14,7 @@ clean:
 	$(CC) -clean >/dev/null
 	@rm -rf test/_build/
 
-INTERFACES=edCommand.cmi editor.cmi fileBuffer.cmi main.cmi types.cmi
+INTERFACES=types.cmi edCommand.cmi editor.cmi fileBuffer.cmi main.cmi edParser.cmi
 
 mli:
 	corebuild $(INTERFACES)
