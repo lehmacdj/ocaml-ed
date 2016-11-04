@@ -1,4 +1,5 @@
-open EdCommand.Types
+open Types
+open EdCommand
 open OUnit2
 
 let edit = Edit (File "hello")
