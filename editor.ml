@@ -82,7 +82,7 @@ let default_response editor =
  * execute [command] on [editor] and return the new editor
  *)
 let execute editor command =
-  printf "~parsed: %s" @@ EdCommand.to_string command;
+  printf "~parsed: %s\n" @@ EdCommand.to_string command;
   match command with
   | Append (addr, text) ->
       let addr = int_of_address editor addr in
