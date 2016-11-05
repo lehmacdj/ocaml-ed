@@ -28,96 +28,96 @@ let string_of_address_range (address1, address2) =
 
 let rec to_string = function
   | Append (address, lines) ->
-      Printf.sprintf "%Sa\n    %s"
+      sprintf "%Sa\n    %s"
           (string_of_address address)
           (String.concat ~sep:"\n    " lines)
   | Change (range, lines) ->
-      Printf.sprintf "%Sc\n    %s"
+      sprintf "%Sc\n    %s"
         (string_of_address_range range)
         (String.concat ~sep:"\n    " lines)
   | Delete range ->
-      Printf.sprintf "%Sd"
+      sprintf "%Sd"
           (string_of_address_range range)
   | Edit filename ->
-      Printf.sprintf "e %S"
+      sprintf "e %S"
           (string_of_filename filename)
   | EditForce filename ->
-      Printf.sprintf "E %S"
+      sprintf "E %S"
           (string_of_filename filename)
   | SetFile filename ->
-      Printf.sprintf "f %S"
+      sprintf "f %S"
           (string_of_filename filename)
   | Global (address_range, regex, command) ->
-      Printf.sprintf "%Sg/%S/%S"
+      sprintf "%Sg/%S/%S"
           (string_of_address_range address_range)
           regex
           (to_string command)
   | GlobalInteractive (address_range, regex) ->
-      Printf.sprintf "%SG/%S"
+      sprintf "%SG/%S"
           (string_of_address_range address_range)
           regex
   | HelpToggle -> "H"
   | Help -> "h"
   | Insert (address, lines) ->
-      Printf.sprintf "%Sa\n    %s"
+      sprintf "%Sa\n    %s"
           (string_of_address address)
           (String.concat ~sep:"\n    " lines)
   | Join (address_range) ->
-      Printf.sprintf "%Sj"
+      sprintf "%Sj"
           (string_of_address_range address_range)
   | List (address_range) ->
-      Printf.sprintf "%Sl"
+      sprintf "%Sl"
           (string_of_address_range address_range)
   | Move (address_range, address3) ->
-      Printf.sprintf "%Sm%S"
+      sprintf "%Sm%S"
           (string_of_address_range address_range)
           (string_of_address address3)
   | Number (address_range) ->
-      Printf.sprintf "%Sn"
+      sprintf "%Sn"
           (string_of_address_range address_range)
   | Print (address_range) ->
-      Printf.sprintf "%Sp"
+      sprintf "%Sp"
           (string_of_address_range address_range)
   | PromptToggle -> "P"
   | Quit -> "q"
   | QuitForce -> "Q"
   | Read (address, filename) ->
-      Printf.sprintf "%Sr %S"
+      sprintf "%Sr %S"
           (string_of_address address)
           (string_of_filename filename)
   | Substitute (address_range, regex, substitution) ->
-      Printf.sprintf "%Ss/%S/%S/"
+      sprintf "%Ss/%S/%S/"
           (string_of_address_range address_range)
           regex
           substitution
   | Transfer (address_range, address3) ->
-      Printf.sprintf "%St%S"
+      sprintf "%St%S"
           (string_of_address_range address_range)
           (string_of_address address3)
   | ConverseGlobal (address_range, regex, command) ->
-      Printf.sprintf "%Sv/%S/%S"
+      sprintf "%Sv/%S/%S"
           (string_of_address_range address_range)
           regex
           (to_string command)
   | ConverseGlobalInteractive (address_range, regex) ->
-      Printf.sprintf "%SV/%S"
+      sprintf "%SV/%S"
           (string_of_address_range address_range)
           regex
   | Write (address_range, filename) ->
-      Printf.sprintf "%Sw %S"
+      sprintf "%Sw %S"
           (string_of_address_range address_range)
           (string_of_filename filename)
   | WriteAppend (address_range, filename) ->
-      Printf.sprintf "%SW %S"
+      sprintf "%SW %S"
           (string_of_address_range address_range)
           (string_of_filename filename)
   | Scroll (address, count) ->
-      Printf.sprintf "%Sz%d"
+      sprintf "%Sz%d"
           (string_of_address address)
           count
   | LineNumber address ->
-      Printf.sprintf "%S="
+      sprintf "%S="
           (string_of_address address)
   | Goto address ->
-      Printf.sprintf "%S"
+      sprintf "%S"
           (string_of_address address)

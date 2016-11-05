@@ -2,6 +2,7 @@
  * Implemets main.mli.
  *)
 open Core.Std
+open Format
 
 (**
  * Get a complete command from std::in
@@ -39,7 +40,7 @@ let run filename =
           (editor, E.response editor ~parse_error:e) in
 
     (* output the necessary response *)
-    match response with
+    (match response with
     | E.Nothing ->
         ()
     | E.UnspecifiedError ->
@@ -48,7 +49,7 @@ let run filename =
         print_endline "?";
         print_endline (string_of_int b)
     | E.EdError m   ->
-        print_endline m;
+        print_endline m);
 
     (* determine whether or not to keep running *)
     if E.running editor

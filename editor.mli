@@ -3,11 +3,6 @@
  *)
 
 (**
- * The type that represents a text editor.
- *)
-type t
-
-(**
  * The type that the editor returns
  *)
 type editor_response =
@@ -15,6 +10,11 @@ type editor_response =
   | UnspecifiedError (** the editor has an error but there is no message *)
   | EdError of string (** the editor has an error with a message *)
   | ByteCount of int (** the byte count of a file loaded or written *)
+
+(**
+ * The type that represents a text editor.
+ *)
+type t
 
 (**
  * Create a new text editor in the input state.

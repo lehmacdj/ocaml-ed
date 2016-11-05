@@ -42,6 +42,11 @@ val lines: t -> int
 val delete: t -> range:(int * int) -> t
 
 (**
+ * insert a line to the buffer at the specified address
+ *)
+val insert: t -> at:int -> lines:text -> t
+
+(**
  * The direction to search through the buffer.
  *)
 type search_direction =

@@ -1,6 +1,7 @@
 open Core.Std
 open Re2.Std
 open Types
+open Format
 
 type command_state =
   | Empty
@@ -62,7 +63,7 @@ let lex_first line =
   let args              = Array.get matches 5 |> Option.value ~default:"" in
 
   (* print a debugging view for what was parsed *)
-  Printf.printf "~lexed: [%S][%s][%S][%S][%S]\n"
+  printf "~lexed: [%S][%s][%S][%S][%S]\n"
       (Option.value ~default:"None" address_start)
       (Option.value ~default:"$"    address_separator)
       (Option.value ~default:"None" address_primary)

@@ -4,13 +4,9 @@
 open Core.Std
 open Re2.Std
 open Types
+open Format
 
 type command = EdCommand.t
-
-type editor_state =
-  | ReadyForCommand (** execute a new command *)
-  | ExecutingGlobalInteractive of unit (** TODO: keep track of this *)
-
 
 type editor_response =
   | Nothing
@@ -27,7 +23,6 @@ type t = {
   verbose: bool; (** is the editor running in verbose mode *)
   error: string option; (** The output string *)
   line: int; (** The current line number *)
-  state: editor_state; (** the state of the editor *)
   running: bool; (** is the editor running *)
 }
 
@@ -39,7 +34,6 @@ let make name =
       verbose = true; (* XXX: should start as false *)
       error = None;
       line = 1;
-      state = ReadyForCommand;
       running = true;
     }
   else
@@ -49,17 +43,15 @@ let make name =
       verbose = true; (* XXX: should start as false *)
       error = None;
       line = 1;
-      state = ReadyForCommand;
       running = true;
     }
 
-let running editor =
-  editor.running
+let running editor = editor.running
 
 let rec int_of_address editor = function
-  | FirstLine
-  | Current -> failwith "failure"
-  | Line n -> failwith "failure"
+  | FirstLine -> 1
+  | Current -> editor.line
+  | Line n -> n
   | LastLine -> FileBuffer.lines editor.buffer
   | ForwardSearch re ->
       FileBuffer.find
@@ -90,13 +82,45 @@ let default_response editor =
  * execute [command] on [editor] and return the new editor
  *)
 let execute editor command =
-  print_string "~parsed: ";
-  print_endline @@ EdCommand.to_string command;
+  printf "~parsed: %s" @@ EdCommand.to_string command;
   match command with
-  | Append (text, addr)
-  | Insert (text, addr) -> failwith "unimplemented"
-  | Change (text, addr) -> failwith "unimplemented"
-  | Delete (text, addr) -> failwith "unimplemented"
+  | Append (addr, text) ->
+      let addr = int_of_address editor addr in
+      ({ editor with
+        buffer = FileBuffer.insert editor.buffer ~at:addr ~lines:text;
+        line = addr;
+        error = None;
+        running = true;
+      },
+      Nothing)
+  | Insert (addr, text) ->
+      let addr = int_of_address editor addr in
+      ({ editor with
+        buffer = FileBuffer.insert editor.buffer ~at:(addr - 1) ~lines:text;
+        line = addr;
+        error = None;
+      },
+      Nothing)
+  | Change ((addr1, addr2), text) ->
+      let addr1 = int_of_address editor addr1 in
+      let addr2 = int_of_address editor addr2 in
+      ({ editor with
+        buffer = editor.buffer
+          |> FileBuffer.delete ~range:(addr1, addr2)
+          |> FileBuffer.insert ~at:addr1 ~lines:text;
+        line = addr1;
+        error = None;
+      },
+      Nothing)
+  | Delete (addr1, addr2) ->
+      let addr1 = int_of_address editor addr1 in
+      let addr2 = int_of_address editor addr2 in
+      ({ editor with
+        buffer = FileBuffer.delete ~range:(addr1, addr2) editor.buffer;
+        line = addr1;
+        error = None;
+      },
+      Nothing)
   | Help ->
       (editor, EdError (Option.value ~default:"no error" editor.error))
   | HelpToggle ->

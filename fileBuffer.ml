@@ -53,6 +53,11 @@ let delete (name, text, count) ~range:(start, stop) =
   let count = count - stop + start in
   (name, text, count)
 
+let insert (name, text, count) ~at:index ~lines =
+  let front = List.take text index in
+  let back = List.drop text index in
+  (name, front @ lines @ back, count)
+
 (**
  * Cycles a list. This is equivalent to making the element at indexed the first
  * element of a new list and appending all of the elements that were at the
