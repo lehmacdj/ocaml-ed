@@ -44,12 +44,14 @@ let run filename =
     | E.Nothing ->
         ()
     | E.UnspecifiedError ->
-        print_endline "?"
+        printf "?\n";
+        print_flush ()
     | E.ByteCount b ->
-        print_endline "?";
-        print_endline (string_of_int b)
+        printf "%d\n" b;
+        print_flush ()
     | E.EdError m   ->
-        print_endline m);
+        printf "?\n%s\n" m;
+        print_flush ());
 
     (* determine whether or not to keep running *)
     if E.running editor

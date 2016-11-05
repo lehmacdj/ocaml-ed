@@ -69,6 +69,7 @@ let lex_first line =
       (Option.value ~default:"None" address_primary)
       command
       args;
+  print_flush ();
 
   (address_start, address_separator, address_primary, command, args)
 
