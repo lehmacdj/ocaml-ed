@@ -10,6 +10,7 @@ type editor_response =
   | UnspecifiedError (** the editor has an error but there is no message *)
   | EdError of string (** the editor has an error with a message *)
   | ByteCount of int (** the byte count of a file loaded or written *)
+  | Text of string
 
 (**
  * The type that represents a text editor.

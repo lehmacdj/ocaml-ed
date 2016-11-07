@@ -34,9 +34,17 @@ let set_name (_, text, count) name =
 let get (_, text, _) line =
   List.nth text line
 
-let lines (_, _, count) = count
+let line_count (_, _, count) = count
 
-let write (name, text, _) range =
+(* return the lines in range from buffer *)
+let lines (_, text, _) ~range:(start, stop) =
+  List.filter_mapi text
+    ~f:(fun i e ->
+      if i < start || i > stop
+      then Some e
+      else None)
+
+let write (name, text, _) ~range:_ =
   match name with
   | None ->
       failwith "filename is undefined"
@@ -44,12 +52,7 @@ let write (name, text, _) range =
       Out_channel.write_lines name text
 
 let delete (name, text, count) ~range:(start, stop) =
-  let text = List.filter_mapi
-    ~f:(fun i e ->
-      if i < start || i > stop
-      then Some e
-      else None)
-    text in
+  let text = lines (name, text, count) ~range:(start, stop) in
   let count = count - stop + start in
   (name, text, count)
 

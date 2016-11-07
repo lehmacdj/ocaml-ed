@@ -29,10 +29,13 @@ val get: t -> int -> string option
  * Writes the file to the filesytem. Does not affect the buffer in any other
  * way.
  *)
-val write: t -> address_range -> unit
+val write: t -> range:(int * int) -> unit
 
 (** Return the number of lines in the FileBuffer *)
-val lines: t -> int
+val line_count: t -> int
+
+(** Return the text from lines start to end *)
+val lines: t -> range:(int * int) -> string list
 
 (**
  * Delete the lines specified by range (inclusive) from the file.

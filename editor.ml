@@ -13,6 +13,7 @@ type editor_response =
   | UnspecifiedError
   | EdError of string
   | ByteCount of int
+  | Text of string
 
 (*
  * The data the editor needs to store:
@@ -52,7 +53,7 @@ let rec int_of_address editor = function
   | FirstLine -> 1
   | Current -> editor.line
   | Line n -> n
-  | LastLine -> FileBuffer.lines editor.buffer
+  | LastLine -> FileBuffer.line_count editor.buffer
   | ForwardSearch re ->
       FileBuffer.find
         editor.buffer
@@ -127,15 +128,41 @@ let execute editor command =
   | HelpToggle ->
       let editor = {editor with verbose = not editor.verbose} in
       (editor, default_response editor)
-  | Edit name
-  | EditForce name ->
-      let editor = {editor with buffer = FileBuffer.set_name editor.buffer "test_name!"} in
+  | Edit _
+  | EditForce _ ->
+      let editor = {editor with buffer = FileBuffer.set_name editor.buffer "test name"} in
       (editor, default_response editor)
   | Quit (* TODO: add state to make sure modifications are saved *)
   | QuitForce ->
       let editor = {editor with running = false} in
       (editor, Nothing)
-  | _ ->
+  | Print (addr1, addr2) ->
+      let addr1 = int_of_address editor addr1 in
+      let addr2 = int_of_address editor addr2 in
+      let text = List.fold_left
+        ~init:""
+        ~f:(fun t e -> t ^ "\n" ^ e)
+        (FileBuffer.lines editor.buffer
+          ~range:(addr1, addr2)) in
+      (editor, Text text)
+  | SetFile _
+  | Global _
+  | GlobalInteractive _
+  | Join _
+  | List _
+  | Move _
+  | Number _
+  | PromptToggle
+  | Substitute _
+  | Transfer _
+  | ConverseGlobal _
+  | ConverseGlobalInteractive _
+  | Write _
+  | WriteAppend _
+  | Scroll _
+  | LineNumber _
+  | Read _
+  | Goto _ ->
       ({editor with error = Some (EdCommand.to_string command)},
       default_response editor)
 

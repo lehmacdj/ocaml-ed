@@ -13,7 +13,6 @@ type parse_error =
   | InvalidAddressRange
   | InvalidAddress
   | InvalidCommandSuffix
-  | IncompleteCommand
   | Unimplemented
   | InvalidFileName
 
@@ -28,7 +27,6 @@ let string_of_parse_error = function
   | InvalidAddressRange  -> "invalid address range"
   | InvalidAddress       -> "invalid address"
   | InvalidCommandSuffix -> "invalid command suffix"
-  | IncompleteCommand    -> "incomplete command"
   | Unimplemented        -> "unimplemented"
   | InvalidFileName      -> "invalid filename"
 
@@ -74,7 +72,7 @@ let lex_first line =
   (address_start, address_separator, address_primary, command, args)
 
 (** a base function for parse address *)
-let _parse_address address ~default ~relative_to =
+let _parse_address address ~default ~relative_to:_ =
   let num = Re2.create_exn "\\d*" in
   (* TODO: make offsets work with arbitrary numbers and arbitrary primary addresses *)
   let poffset = Re2.create_exn "[-^]" in
@@ -87,7 +85,7 @@ let _parse_address address ~default ~relative_to =
   | Some s when Re2.matches num s     -> Ok (Line (int_of_string s))
   | Some s when Re2.matches poffset s -> Ok (Offset (Current, -1))
   | Some s when Re2.matches noffset s -> Ok (Offset (Current, +1))
-  | Some s                            -> Error InvalidAddress
+  | Some _                            -> Error InvalidAddress
 
 (** return an address based on an address string and a default address *)
 let parse_address = _parse_address ~relative_to:FirstLine
@@ -253,7 +251,7 @@ let parse_first line =
   | "V"
   | "s" -> Error Unimplemented
 
-  | x -> failwith "this should never occur"
+  | _ -> failwith "this should never occur"
 
   (**
    * finds the next state based on the previous state

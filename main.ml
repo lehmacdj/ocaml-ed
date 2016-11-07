@@ -51,6 +51,9 @@ let run filename =
         print_flush ()
     | E.EdError m   ->
         printf "?\n%s\n" m;
+        print_flush ()
+    | E.Text t ->
+        print_endline t;
         print_flush ());
 
     (* determine whether or not to keep running *)
