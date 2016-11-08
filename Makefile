@@ -33,7 +33,7 @@ clean:
 	$(CC) -clean >/dev/null
 	@rm -rf test/_build/
 
-INTERFACES=types.cmi edCommand.cmi editor.cmi fileBuffer.cmi main.cmi edParser.cmi
+INTERFACES := $(patsubst %.mli, %.cmi, $(wildcard *.mli))
 
 mli:
 	corebuild $(INTERFACES)
