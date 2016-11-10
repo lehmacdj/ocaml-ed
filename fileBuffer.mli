@@ -20,6 +20,11 @@ val make: string option -> t
 val set_name: t -> string -> t
 
 (**
+ * Return the name of the buffer
+ *)
+val name: t -> string option
+
+(**
  * Returns the line of text given by the line number. Returns None if that line
  * is out of range for the buffer.
  *)

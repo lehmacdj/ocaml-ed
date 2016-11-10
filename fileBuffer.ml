@@ -31,6 +31,9 @@ let make = function
 let set_name (_, text, count) name =
   (Some name, text, count)
 
+let name (name, _, _) =
+  name
+
 let get (_, text, _) line =
   List.nth text line
 

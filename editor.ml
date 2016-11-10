@@ -14,6 +14,7 @@ type editor_response =
   | EdError of string
   | ByteCount of int
   | Text of string
+  | PathName of string
 
 (*
  * The data the editor needs to store:
@@ -128,9 +129,13 @@ let execute editor command =
   | HelpToggle ->
       let editor = {editor with verbose = not editor.verbose} in
       (editor, default_response editor)
-  | Edit _
-  | EditForce _ ->
-      let editor = {editor with buffer = FileBuffer.set_name editor.buffer "test name"} in
+  | Edit filename (* TODO: logic for whether to editor or not *)
+  | EditForce filename ->
+      let file = (match filename with
+          | File name -> FileBuffer.make (Some name)
+          | Command com -> failwith "failure"
+          | ThisFile -> editor.buffer) in
+      let editor = {editor with buffer = file} in
       (editor, default_response editor)
   | Quit (* TODO: add state to make sure modifications are saved *)
   | QuitForce ->
@@ -145,7 +150,19 @@ let execute editor command =
         (FileBuffer.lines editor.buffer
           ~range:(addr1, addr2)) in
       (editor, Text text)
-  | SetFile _
+  | SetFile filename ->
+      (match filename with
+      | File name ->
+          ({editor with buffer = FileBuffer.set_name editor.buffer name},
+          PathName name)
+      | ThisFile ->
+          (match FileBuffer.name editor.buffer with
+          | Some name -> (editor, PathName name)
+          | None -> (editor, EdError "no current filename"))
+      | Command name ->
+          (editor, EdError "invalid redirection"))
+
+
   | Global _
   | GlobalInteractive _
   | Join _
