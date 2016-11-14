@@ -54,6 +54,9 @@ let run filename =
         print_flush ()
     | E.Text t ->
         print_endline t;
+        print_flush ()
+    | E.PathName s ->
+        printf "%s\n" s;
         print_flush ());
 
     (* determine whether or not to keep running *)

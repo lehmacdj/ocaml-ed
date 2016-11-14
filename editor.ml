@@ -133,7 +133,7 @@ let execute editor command =
   | EditForce filename ->
       let file = (match filename with
           | File name -> FileBuffer.make (Some name)
-          | Command com -> failwith "failure"
+          | Command _ -> failwith "failure"
           | ThisFile -> editor.buffer) in
       let editor = {editor with buffer = file} in
       (editor, default_response editor)
@@ -159,7 +159,7 @@ let execute editor command =
           (match FileBuffer.name editor.buffer with
           | Some name -> (editor, PathName name)
           | None -> (editor, EdError "no current filename"))
-      | Command name ->
+      | Command _ ->
           (editor, EdError "invalid redirection"))
 
 
