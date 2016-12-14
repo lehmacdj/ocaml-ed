@@ -4,7 +4,6 @@
 open Core.Std
 open Re2.Std
 open Types
-open Format
 
 type command = EdCommand.t
 ;;
@@ -44,11 +43,12 @@ let make name =
 let running editor = editor.running
 ;;
 
-let rec int_of_address editor = function
-  | FirstLine -> 1
-  | Current -> editor.line
-  | Line n -> n
-  | LastLine -> FileBuffer.line_count editor.buffer
+let rec int_of_address editor =
+  let open Result.Monad_infix in function
+  | FirstLine -> Result.return 1
+  | Current -> Result.return editor.line
+  | Line n -> Result.return n
+  | LastLine -> Result.return @@ FileBuffer.line_count editor.buffer
   | ForwardSearch re ->
       FileBuffer.find
         editor.buffer
@@ -61,7 +61,9 @@ let rec int_of_address editor = function
         editor.line
         re
         ~direction:FileBuffer.Backward
-  | Offset (address, i) -> i + (int_of_address editor address)
+  | Offset (address, i) ->
+      int_of_address editor address >>= fun address_value ->
+      Result.return @@ i + address_value
 ;;
 
 (*
@@ -77,13 +79,13 @@ let default_response editor =
 ;;
 
 let execute editor ~command ~suffix =
-  printf "~parsed: %s\n" @@ EdCommand.to_string command;
-  print_flush ();
+  let open Result.Monad_infix in
   match command with
   | Append (addr, text) ->
       let addr = int_of_address editor addr in
+      FileBuffer.insert editor.buffer ~at:addr ~lines:text >>= fun buf ->
       ({ editor with
-        buffer = FileBuffer.insert editor.buffer ~at:addr ~lines:text;
+        buffer = buffer;
         line = addr;
         error = None;
         running = true;
@@ -97,23 +99,23 @@ let execute editor ~command ~suffix =
         error = None;
       },
       Nothing)
-  | Change ((addr1, addr2), text) ->
-      let addr1 = int_of_address editor addr1 in
-      let addr2 = int_of_address editor addr2 in
+  | Change ((start, primary), text) ->
+      let start = int_of_address editor start in
+      let primary = int_of_address editor primary in
       ({ editor with
         buffer = editor.buffer
-          |> FileBuffer.delete ~range:(addr1, addr2)
-          |> FileBuffer.insert ~at:addr1 ~lines:text;
-        line = addr1;
+          |> FileBuffer.delete ~range:(start, primary)
+          |> FileBuffer.insert ~at:start ~lines:text;
+        line = start;
         error = None;
       },
       Nothing)
-  | Delete (addr1, addr2) ->
-      let addr1 = int_of_address editor addr1 in
-      let addr2 = int_of_address editor addr2 in
+  | Delete (start, primary) ->
+      let start = int_of_address editor start in
+      let primary = int_of_address editor primary in
       ({ editor with
-        buffer = FileBuffer.delete ~range:(addr1, addr2) editor.buffer;
-        line = addr1;
+        buffer = FileBuffer.delete ~range:(start, primary) editor.buffer;
+        line = start;
         error = None;
       },
       Nothing)
@@ -134,14 +136,14 @@ let execute editor ~command ~suffix =
   | QuitForce ->
       let editor = {editor with running = false} in
       (editor, Nothing)
-  | Print (addr1, addr2) ->
-      let addr1 = int_of_address editor addr1 in
-      let addr2 = int_of_address editor addr2 in
+  | Print (start, primary) ->
+      let start = int_of_address editor start in
+      let primary = int_of_address editor primary in
       let text = List.fold_left
         ~init:""
         ~f:(fun t e -> t ^ "\n" ^ e)
         (FileBuffer.lines editor.buffer
-          ~range:(addr1, addr2)) in
+          ~range:(start, primary)) in
       (editor, Text text)
   | SetFile filename ->
       (match filename with

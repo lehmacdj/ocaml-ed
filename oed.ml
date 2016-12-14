@@ -62,6 +62,8 @@ let rec run editor =
   let (editor, response) =
     match parse_command () with
     | Ok (c, s) ->
+        printf "~parsed: %s\n" @@ EdCommand.to_string c;
+        print_flush ();
         E.execute editor ~command:c ~suffix:s
     | Error e ->
         ( editor

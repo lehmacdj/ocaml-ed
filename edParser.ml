@@ -9,7 +9,6 @@ type command_state =
 ;;
 
 type parse_error =
-  | InvalidAddressRange
   | InvalidAddress
   | InvalidCommandSuffix
   | Unimplemented
@@ -26,7 +25,6 @@ let initial = Ok Empty
 ;;
 
 let string_of_parse_error = function
-  | InvalidAddressRange  -> "invalid address range"
   | InvalidAddress       -> "invalid address"
   | InvalidCommandSuffix -> "invalid command suffix"
   | Unimplemented        -> "unimplemented"
@@ -78,19 +76,20 @@ let lex_first line =
 ;;
 
 (** a base function for parse address *)
-let _parse_address address ~default ~relative_to:_ =
+let _parse_address address ~default ~relative_to:rel =
   let num = Re2.create_exn "\\d*" in
   (* TODO: make offsets work with arbitrary numbers and arbitrary primary addresses *)
+  (* TODO: overhaul this more or less entirely *)
   let poffset = Re2.create_exn "[-^]" in
   let noffset = Re2.create_exn "\\+" in
   match address with
   | None                              -> Ok default
-  | Some s when s = "1"               -> Ok (FirstLine)
-  | Some s when s = "."               -> Ok (Current)
-  | Some s when s = "$"               -> Ok (LastLine)
+  | Some s when s = "1"               -> Ok FirstLine
+  | Some s when s = "."               -> Ok rel
+  | Some s when s = "$"               -> Ok LastLine
   | Some s when Re2.matches num s     -> Ok (Line (int_of_string s))
-  | Some s when Re2.matches poffset s -> Ok (Offset (Current, -1))
-  | Some s when Re2.matches noffset s -> Ok (Offset (Current, +1))
+  | Some s when Re2.matches poffset s -> Ok (Offset (rel, -1))
+  | Some s when Re2.matches noffset s -> Ok (Offset (rel, +1))
   | Some _                            -> Error InvalidAddress
 ;;
 
@@ -99,24 +98,21 @@ let parse_address = _parse_address ~relative_to:FirstLine
 ;;
 
 (** return a pair of addresses representing an address range *)
-let parse_address_range addr1 delim addr2 ~default1 ~default2 =
-  match addr1, delim, addr2 with
-  | (a1, delim, a2) when delim = (Some ",") ->
-      let addr1 = _parse_address a1 ~default:default1 ~relative_to:FirstLine in
-      let addr2 = _parse_address a2 ~default:default2 ~relative_to:FirstLine in
-      Option.value_map
-          (Option.both (Result.ok addr1) (Result.ok addr2))
-          ~default:(Error InvalidAddressRange)
-          ~f:(fun v -> Ok v)
-  | (a1, delim, a2) when delim = (Some ";") ->
-      let addr1 = _parse_address a1 ~default:default1 ~relative_to:FirstLine in
-      let addr2 = _parse_address a2 ~default:default2 ~relative_to:a1 in
-      Option.value_map
-          (Option.both (Result.ok addr1) (Result.ok addr2))
-          ~default:(Error InvalidAddressRange)
-          ~f:(fun v -> Ok v)
-  | (_, Some _, _)
-  | (_, None, _)   -> Error InvalidAddressRange
+let parse_address_range start delim primary ~d_start ~d_primary =
+  let open Result.Monad_infix in
+  match delim with
+  | Some "," ->
+      _parse_address start ~default:d_start ~relative_to:Current >>= fun s ->
+      _parse_address primary ~default:d_primary ~relative_to:Current >>= fun p ->
+      Result.return (s, p)
+  | Some ";" ->
+      _parse_address start ~default:d_start ~relative_to:Current >>= fun s ->
+      _parse_address primary ~default:d_primary ~relative_to:s >>= fun p ->
+      Result.return (s, p)
+  | None ->
+      _parse_address primary ~default:d_primary ~relative_to:Current >>= fun p ->
+      Result.return (p, p)
+  | Some _ -> Error InvalidAddress
 ;;
 
 (* returns the filename to be used based on [args] *)
@@ -139,10 +135,7 @@ let parse_filename args =
  * arguments that that command requires.
  *)
 let parse_first line =
-  let (address_start,
-       address_separator,
-       address_primary,
-       command, args) = lex_first line in
+  let (start, separator, primary, command, args) = lex_first line in
 
   let suffix_completed command =
     if args <> ""
@@ -159,22 +152,22 @@ let parse_first line =
     else Ok (Partial (command, NoSuffix)) in
 
   let addr_or_current = parse_address
-      address_primary
+      primary
       ~default:Current in
 
   let range_or_current = parse_address_range
-      address_start
-      address_separator
-      address_primary
-      ~default1:Current
-      ~default2:Current in
+      start
+      separator
+      primary
+      ~d_start:Current
+      ~d_primary:Current in
 
   let range_or_buffer = parse_address_range
-      address_start
-      address_separator
-      address_primary
-      ~default1:FirstLine
-      ~default2:LastLine in
+      start
+      separator
+      primary
+      ~d_start:FirstLine
+      ~d_primary:LastLine in
 
   let filename = parse_filename args in
 

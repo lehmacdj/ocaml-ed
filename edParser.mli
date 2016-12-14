@@ -9,8 +9,10 @@ open Types
 (** the parse state *)
 type t
 
+(** an error while parsing *)
 type parse_error
 
+(** a string representation of the error *)
 val string_of_parse_error: parse_error -> string
 
 (** An empty command *)
