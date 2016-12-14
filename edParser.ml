@@ -4,8 +4,8 @@ open Types
 
 type command_state =
   | Empty (* a command on which parsing hasn't started yet *)
-  | Partial of EdCommand.t * suffix option (* an incomplete command *)
-  | Complete of EdCommand.t * suffix option (* a command that has a suffix *)
+  | Partial of EdCommand.t * suffix (* an incomplete command *)
+  | Complete of EdCommand.t * suffix (* a command that has a suffix *)
 ;;
 
 type parse_error =
@@ -149,14 +149,14 @@ let parse_first line =
     (* return an error *)
     then Error InvalidCommandSuffix
     (* return the command and the suffix *)
-    else Ok (Complete (command, None)) in
+    else Ok (Complete (command, NoSuffix)) in
 
   let suffix_partial command =
     if args <> ""
     (* return an error *)
     then Error InvalidCommandSuffix
     (* return the command and the suffix *)
-    else Ok (Partial (command, None)) in
+    else Ok (Partial (command, NoSuffix)) in
 
   let addr_or_current = parse_address
       address_primary
@@ -218,26 +218,26 @@ let parse_first line =
   (* file operations *)
   | "e" ->
       filename >>= (fun filename ->
-      Ok (Complete (Edit filename, None)))
+      Ok (Complete (Edit filename, NoSuffix)))
   | "f" ->
       filename >>= (fun filename ->
-      Ok (Complete (SetFile filename, None)))
+      Ok (Complete (SetFile filename, NoSuffix)))
 
   (* write operations *)
   | "w" ->
       filename >>= (fun filename ->
       range_or_buffer >>= fun range ->
-      Ok (Complete (Write (range, filename), None)))
+      Ok (Complete (Write (range, filename), NoSuffix)))
   | "W" ->
       filename >>= (fun filename ->
       range_or_buffer >>= fun range ->
-      Ok (Complete (WriteAppend (range, filename), None)))
+      Ok (Complete (WriteAppend (range, filename), NoSuffix)))
 
   (* read *)
   | "r" ->
       filename >>= (fun filename ->
       addr_or_current >>= fun addr ->
-      Ok (Complete (Read (addr, filename), None)))
+      Ok (Complete (Read (addr, filename), NoSuffix)))
 
   (* 3 address *)
   | "m"

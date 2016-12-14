@@ -60,3 +60,4 @@ type suffix =
   | PrintS
   | ListS
   | NumberS
+  | NoSuffix
