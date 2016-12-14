@@ -7,7 +7,7 @@ type command_state =
   | Empty
   | Partial of EdCommand.t
   | Complete of EdCommand.t
-
+;;
 
 type parse_error =
   | InvalidAddressRange
@@ -15,13 +15,16 @@ type parse_error =
   | InvalidCommandSuffix
   | Unimplemented
   | InvalidFileName
+;;
 
 type t = (command_state, parse_error) Result.t
+;;
 
 (*
  * the initial parse state
  *)
 let initial = Ok Empty
+;;
 
 let string_of_parse_error = function
   | InvalidAddressRange  -> "invalid address range"
@@ -29,10 +32,12 @@ let string_of_parse_error = function
   | InvalidCommandSuffix -> "invalid command suffix"
   | Unimplemented        -> "unimplemented"
   | InvalidFileName      -> "invalid filename"
+;;
 
 let error_to_none = function
   | Ok x -> Some x
   | Error _ -> None
+;;
 
 (** lex the first line of a command *)
 let lex_first line =
@@ -70,6 +75,7 @@ let lex_first line =
   print_flush ();
 
   (address_start, address_separator, address_primary, command, args)
+;;
 
 (** a base function for parse address *)
 let _parse_address address ~default ~relative_to:_ =
@@ -86,9 +92,11 @@ let _parse_address address ~default ~relative_to:_ =
   | Some s when Re2.matches poffset s -> Ok (Offset (Current, -1))
   | Some s when Re2.matches noffset s -> Ok (Offset (Current, +1))
   | Some _                            -> Error InvalidAddress
+;;
 
 (** return an address based on an address string and a default address *)
 let parse_address = _parse_address ~relative_to:FirstLine
+;;
 
 (** return a pair of addresses representing an address range *)
 let parse_address_range addr1 delim addr2 ~default1 ~default2 =
@@ -109,6 +117,7 @@ let parse_address_range addr1 delim addr2 ~default1 ~default2 =
           ~f:(fun v -> Ok v)
   | (_, Some _, _)
   | (_, None, _)   -> Error InvalidAddressRange
+;;
 
 (* returns the filename to be used based on [args] *)
 let parse_filename args =
@@ -122,6 +131,7 @@ let parse_filename args =
       | Some "!", Some name -> Ok (Command name)
       | Some _, None
       | Some _, Some _ -> Error InvalidFileName)
+;;
 
 (**
  * Separate the addresses, command and args. Effectively the main parser of the
@@ -165,61 +175,61 @@ let parse_first line =
   match command with
   (* editing commands *)
   | "a" ->
-      addr_or_current >>= fun addr ->
-      validate_command_suffix (Partial (Append (addr, [])))
+      addr_or_current >>= (fun addr ->
+      validate_command_suffix (Partial (Append (addr, []))))
   | "c" ->
-      range_or_current >>= fun range ->
-      validate_command_suffix (Partial (Change (range, [])))
+      range_or_current >>= (fun range ->
+      validate_command_suffix (Partial (Change (range, []))))
   | "i" ->
-      addr_or_current >>= fun addr ->
-      validate_command_suffix (Partial (Insert (addr, [])))
+      addr_or_current >>= (fun addr ->
+      validate_command_suffix (Partial (Insert (addr, []))))
   | "d" ->
-      range_or_current >>= fun range ->
-      validate_command_suffix (Complete (Delete range))
+      range_or_current >>= (fun range ->
+      validate_command_suffix (Complete (Delete range)))
   | "j" ->
-      range_or_current >>= fun range ->
-      validate_command_suffix (Complete (Join range))
+      range_or_current >>= (fun range ->
+      validate_command_suffix (Complete (Join range)))
 
   (* printing commands *)
   | "l" ->
-      range_or_current >>= fun range ->
-      validate_command_suffix (Complete (List range))
+      range_or_current >>= (fun range ->
+      validate_command_suffix (Complete (List range)))
   | "n" ->
-      range_or_current >>= fun range ->
-      validate_command_suffix (Complete (Number range))
+      range_or_current >>= (fun range ->
+      validate_command_suffix (Complete (Number range)))
   | "p" ->
-      range_or_current >>= fun range ->
-      validate_command_suffix (Complete (Print range))
+      range_or_current >>= (fun range ->
+      validate_command_suffix (Complete (Print range)))
   | "" ->
-      addr_or_current >>= fun addr ->
-      validate_command_suffix (Complete (Goto addr))
+      addr_or_current >>= (fun addr ->
+      validate_command_suffix (Complete (Goto addr)))
   | "=" ->
-      addr_or_current >>= fun addr ->
-      validate_command_suffix (Complete (LineNumber addr))
-
+      addr_or_current >>= (fun addr ->
+      validate_command_suffix (Complete (LineNumber addr)))
 
   (* file operations *)
   | "e" ->
-      filename >>= fun filename ->
-      Ok (Complete (Edit filename))
+      filename >>= (fun filename ->
+      Ok (Complete (Edit filename)))
   | "f" ->
-      filename >>= fun filename ->
-      Ok (Complete (SetFile filename))
+      filename >>= (fun filename ->
+      Ok (Complete (SetFile filename)))
 
   (* write operations *)
   | "w" ->
-      filename >>= fun filename ->
+      filename >>= (fun filename ->
       range_or_buffer >>= fun range ->
-      Ok (Complete (Write (range, filename)))
+      Ok (Complete (Write (range, filename))))
   | "W" ->
-      filename >>= fun filename ->
+      filename >>= (fun filename ->
       range_or_buffer >>= fun range ->
-      Ok (Complete (WriteAppend (range, filename)))
+      Ok (Complete (WriteAppend (range, filename))))
+
   (* read *)
   | "r" ->
-      filename >>= fun filename ->
+      filename >>= (fun filename ->
       addr_or_current >>= fun addr ->
-      Ok (Complete (Read (addr, filename)))
+      Ok (Complete (Read (addr, filename))))
 
   (* 3 address *)
   | "m"
@@ -252,16 +262,17 @@ let parse_first line =
   | "s" -> Error Unimplemented
 
   | _ -> failwith "this should never occur"
+;;
 
-  (**
-   * finds the next state based on the previous state
-   * - unstarted commands are parsed initially
-   * - partial commands are updated to be closer to being complete
-   * - complete commands are not changed
-   *)
-  let parse_line state line =
-    let open Result.Monad_infix in
-    state >>= fun state ->
+(**
+ * finds the next state based on the previous state
+ * - unstarted commands are parsed initially
+ * - partial commands are updated to be closer to being complete
+ * - complete commands are not changed
+ *)
+let parse_line state line =
+  let open Result.Monad_infix in
+  state >>= fun state ->
     match state with
     | Empty ->
         parse_first line
@@ -278,7 +289,7 @@ let parse_first line =
         then Ok (Complete (Insert (a, lines)))
         else Ok (Partial (Insert (a, line :: lines)))
 
-    (* Parse the further global command *)
+        (* Parse the further global command *)
     | Partial Global _ ->
         Error Unimplemented
     | Partial ConverseGlobal _ ->
@@ -310,9 +321,13 @@ let parse_first line =
     | Partial Write _
     | Partial WriteAppend _
     | Complete _ -> failwith "this should never occur"
+;;
 
-  let finish = function
-    | Ok Empty
-    | Ok Partial _ -> None
-    | Ok Complete c -> Some (Ok c)
-    | Error e -> Some (Error e)
+(* complete the parsing of a command returning an EdCommand or return None if
+ * parsing has not yet terminated *)
+let finish = function
+  | Ok Empty
+  | Ok Partial _ -> None
+  | Ok Complete c -> Some (Ok c)
+  | Error e -> Some (Error e)
+;;

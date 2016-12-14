@@ -30,10 +30,10 @@ let parse_command () =
     | Some c -> c in
   helper P.initial
 
-(*
- * The main function of the program. Logic for input and output goes here along
- * with any necessary mutable (yuck) features.
- *)
+(* The core loop of the program; I should probably convert editor to be a Monad
+ * But OCaml doesn't support do notation so it probably wouldn't be particularly
+ * prettier than what we currently have. Eventually I will have to use Async
+ * here in order to deal with the behavior we are supposed to do on <C-c> *)
 let rec run editor =
   let module E = Editor in
 
