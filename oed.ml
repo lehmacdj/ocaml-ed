@@ -80,4 +80,4 @@ let () = Command.run @@ Command.basic
       ~doc:"string prompt to display before executing commands"
     +> anon (maybe_with_default "" ("filename" %: string))
   )
-  (fun suppressed prompt filename () -> run @@ Editor.make filename)
+  (fun _ _ filename () -> run @@ Editor.make filename)
