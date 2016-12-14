@@ -69,3 +69,14 @@ type suffix =
   | NumberS
   | NoSuffix
 ;;
+
+(**
+ * Type of output to display to the console.
+ *)
+type output =
+  | Nothing (** prints nothing *)
+  | EdError of string option (* an error with an optional description *)
+  | ByteCount of int (** the byte count of a file loaded or written *)
+  | Text of string (** some text from the buffer to output *)
+  | PathName of string (** a pathname , e.g. after changing the filename *)
+;;

@@ -7,18 +7,9 @@ open Types
 open Format
 
 type command = EdCommand.t
+;;
 
-type editor_response =
-  | Nothing
-  | UnspecifiedError
-  | EdError of string
-  | ByteCount of int
-  | Text of string
-  | PathName of string
-
-(*
- * The data the editor needs to store:
- *)
+(* The data the editor needs to store: *)
 type t = {
   buffer: FileBuffer.t; (** The file and its contents *)
   undo: unit; (** Undo history. TODO: define this type *)
@@ -27,6 +18,7 @@ type t = {
   line: int; (** The current line number *)
   running: bool; (** is the editor running *)
 }
+;;
 
 let make name =
   if name = "" then
@@ -47,8 +39,10 @@ let make name =
       line = 1;
       running = true;
     }
+;;
 
 let running editor = editor.running
+;;
 
 let rec int_of_address editor = function
   | FirstLine -> 1
@@ -68,6 +62,7 @@ let rec int_of_address editor = function
         re
         ~direction:FileBuffer.Backward
   | Offset (address, i) -> i + (int_of_address editor address)
+;;
 
 (*
  * The default response for the editor. returns a editor_response that is either
@@ -77,12 +72,10 @@ let rec int_of_address editor = function
 let default_response editor =
   match editor.error with
   | None                       -> Nothing
-  | Some s when editor.verbose -> EdError s
-  | Some _                     -> UnspecifiedError
+  | Some s when editor.verbose -> EdError (Some s)
+  | Some _                     -> EdError None
+;;
 
-(**
- * execute [command] on [editor] and return the new editor
- *)
 let execute editor ~command ~suffix =
   printf "~parsed: %s\n" @@ EdCommand.to_string command;
   print_flush ();
@@ -125,7 +118,7 @@ let execute editor ~command ~suffix =
       },
       Nothing)
   | Help ->
-      (editor, EdError (Option.value ~default:"no error" editor.error))
+      (editor, EdError editor.error)
   | HelpToggle ->
       let editor = {editor with verbose = not editor.verbose} in
       (editor, default_response editor)
@@ -158,10 +151,9 @@ let execute editor ~command ~suffix =
       | ThisFile ->
           (match FileBuffer.name editor.buffer with
           | Some name -> (editor, PathName name)
-          | None -> (editor, EdError "no current filename"))
+          | None -> (editor, EdError (Some "no current filename")))
       | Command _ ->
-          (editor, EdError "invalid redirection"))
-
+          (editor, EdError (Some "invalid redirection")))
 
   | Global _
   | GlobalInteractive _
@@ -182,8 +174,7 @@ let execute editor ~command ~suffix =
   | Goto _ ->
       ({editor with error = Some (EdCommand.to_string command)},
       default_response editor)
+;;
 
-let response editor ~parse_error:error =
-  if editor.verbose
-  then EdError (EdParser.string_of_parse_error error)
-  else UnspecifiedError
+let is_verbose editor = editor.verbose
+;;
