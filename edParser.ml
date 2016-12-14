@@ -4,9 +4,9 @@ open Types
 open Format
 
 type command_state =
-  | Empty
-  | Partial of EdCommand.t
-  | Complete of EdCommand.t
+  | Empty (* a command on which parsing hasn't started yet *)
+  | Partial of EdCommand.t * suffix option (* an incomplete command *)
+  | Complete of EdCommand.t * suffix option (* a command that has a suffix *)
 ;;
 
 type parse_error =
@@ -144,11 +144,19 @@ let parse_first line =
        address_primary,
        command, args) = lex_first line in
 
-  (* returns an error or [command] based on [args] *)
-  let validate_command_suffix command =
+  let suffix_completed command =
     if args <> ""
+    (* return an error *)
     then Error InvalidCommandSuffix
-    else Ok command in
+    (* return the command and the suffix *)
+    else Ok (Complete (command, None)) in
+
+  let suffix_partial command =
+    if args <> ""
+    (* return an error *)
+    then Error InvalidCommandSuffix
+    (* return the command and the suffix *)
+    else Ok (Partial (command, None)) in
 
   let addr_or_current = parse_address
       address_primary
@@ -176,60 +184,60 @@ let parse_first line =
   (* editing commands *)
   | "a" ->
       addr_or_current >>= (fun addr ->
-      validate_command_suffix (Partial (Append (addr, []))))
+      suffix_partial (Append (addr, [])))
   | "c" ->
       range_or_current >>= (fun range ->
-      validate_command_suffix (Partial (Change (range, []))))
+      suffix_partial (Change (range, [])))
   | "i" ->
       addr_or_current >>= (fun addr ->
-      validate_command_suffix (Partial (Insert (addr, []))))
+      suffix_partial (Insert (addr, [])))
   | "d" ->
       range_or_current >>= (fun range ->
-      validate_command_suffix (Complete (Delete range)))
+      suffix_completed (Delete range))
   | "j" ->
       range_or_current >>= (fun range ->
-      validate_command_suffix (Complete (Join range)))
+      suffix_completed (Join range))
 
   (* printing commands *)
   | "l" ->
       range_or_current >>= (fun range ->
-      validate_command_suffix (Complete (List range)))
+      suffix_completed (List range))
   | "n" ->
       range_or_current >>= (fun range ->
-      validate_command_suffix (Complete (Number range)))
+      suffix_completed (Number range))
   | "p" ->
       range_or_current >>= (fun range ->
-      validate_command_suffix (Complete (Print range)))
+      suffix_completed (Print range))
   | "" ->
       addr_or_current >>= (fun addr ->
-      validate_command_suffix (Complete (Goto addr)))
+      suffix_completed (Goto addr))
   | "=" ->
       addr_or_current >>= (fun addr ->
-      validate_command_suffix (Complete (LineNumber addr)))
+      suffix_completed (LineNumber addr))
 
   (* file operations *)
   | "e" ->
       filename >>= (fun filename ->
-      Ok (Complete (Edit filename)))
+      Ok (Complete (Edit filename, None)))
   | "f" ->
       filename >>= (fun filename ->
-      Ok (Complete (SetFile filename)))
+      Ok (Complete (SetFile filename, None)))
 
   (* write operations *)
   | "w" ->
       filename >>= (fun filename ->
       range_or_buffer >>= fun range ->
-      Ok (Complete (Write (range, filename))))
+      Ok (Complete (Write (range, filename), None)))
   | "W" ->
       filename >>= (fun filename ->
       range_or_buffer >>= fun range ->
-      Ok (Complete (WriteAppend (range, filename))))
+      Ok (Complete (WriteAppend (range, filename), None)))
 
   (* read *)
   | "r" ->
       filename >>= (fun filename ->
       addr_or_current >>= fun addr ->
-      Ok (Complete (Read (addr, filename))))
+      Ok (Complete (Read (addr, filename), None)))
 
   (* 3 address *)
   | "m"
@@ -237,22 +245,22 @@ let parse_first line =
 
   (* help commands *)
   | "h" ->
-      validate_command_suffix (Complete Help)
+      suffix_completed Help
   | "H" ->
-      validate_command_suffix (Complete HelpToggle)
+      suffix_completed HelpToggle
   (* quit operations *)
   | "q" ->
-      validate_command_suffix (Complete Quit)
+      suffix_completed Quit
   | "Q" ->
-      validate_command_suffix (Complete QuitForce)
+      suffix_completed QuitForce
   (* toggle prompt *)
   | "P" ->
-      validate_command_suffix (Complete PromptToggle)
+      suffix_completed PromptToggle
 
   | "z" ->
       (* TODO: parse the line number to be correct *)
       addr_or_current >>= fun addr ->
-      validate_command_suffix (Complete (Scroll (addr, 1)))
+      suffix_completed (Scroll (addr, 1))
 
   (* hard commands *)
   | "g"
@@ -276,51 +284,51 @@ let parse_line state line =
     match state with
     | Empty ->
         parse_first line
-    | Partial Append (a, lines) ->
+    | Partial (Append (a, lines), suf) ->
         if line = "."
-        then Ok (Complete (Append (a, lines)))
-        else Ok (Partial (Append (a, line :: lines)))
-    | Partial Change (r, lines) ->
+        then Ok (Complete (Append (a, lines), suf))
+        else Ok (Partial (Append (a, line :: lines), suf))
+    | Partial (Change (r, lines), suf) ->
         if line = "."
-        then Ok (Complete (Change (r, lines)))
-        else Ok (Partial (Change (r, line :: lines)))
-    | Partial Insert (a, lines) ->
+        then Ok (Complete (Change (r, lines), suf))
+        else Ok (Partial (Change (r, line :: lines), suf))
+    | Partial (Insert (a, lines), suf) ->
         if line = "."
-        then Ok (Complete (Insert (a, lines)))
-        else Ok (Partial (Insert (a, line :: lines)))
+        then Ok (Complete (Insert (a, lines), suf))
+        else Ok (Partial (Insert (a, line :: lines), suf))
 
         (* Parse the further global command *)
-    | Partial Global _ ->
+    | Partial (Global _, _) ->
         Error Unimplemented
-    | Partial ConverseGlobal _ ->
+    | Partial (ConverseGlobal _, _) ->
         Error Unimplemented
 
     (* all of these things should never have to parse more than once *)
-    | Partial Delete _
-    | Partial Edit _
-    | Partial EditForce _
-    | Partial GlobalInteractive _
-    | Partial Goto _
-    | Partial Help
-    | Partial HelpToggle
-    | Partial Join _
-    | Partial LineNumber _
-    | Partial List _
-    | Partial Move _
-    | Partial ConverseGlobalInteractive _
-    | Partial Number _
-    | Partial Print _
-    | Partial PromptToggle
-    | Partial Quit
-    | Partial QuitForce
-    | Partial Read _
-    | Partial Scroll _
-    | Partial SetFile _
-    | Partial Substitute _
-    | Partial Transfer _
-    | Partial Write _
-    | Partial WriteAppend _
-    | Complete _ -> failwith "this should never occur"
+    | Partial (Delete _, _)
+    | Partial (Edit _, _)
+    | Partial (EditForce _, _)
+    | Partial (GlobalInteractive _, _)
+    | Partial (Goto _, _)
+    | Partial (Help, _)
+    | Partial (HelpToggle, _)
+    | Partial (Join _, _)
+    | Partial (LineNumber _, _)
+    | Partial (List _, _)
+    | Partial (Move _, _)
+    | Partial (ConverseGlobalInteractive _, _)
+    | Partial (Number _, _)
+    | Partial (Print _, _)
+    | Partial (PromptToggle, _)
+    | Partial (Quit, _)
+    | Partial (QuitForce, _)
+    | Partial (Read _, _)
+    | Partial (Scroll _, _)
+    | Partial (SetFile _, _)
+    | Partial (Substitute _, _)
+    | Partial (Transfer _, _)
+    | Partial (Write _, _)
+    | Partial (WriteAppend _, _)
+    | Complete (_, _) -> failwith "tried to continue parsing when already finished"
 ;;
 
 (* complete the parsing of a command returning an EdCommand or return None if
@@ -328,6 +336,6 @@ let parse_line state line =
 let finish = function
   | Ok Empty
   | Ok Partial _ -> None
-  | Ok Complete c -> Some (Ok c)
+  | Ok Complete (c, _) -> Some (Ok c)
   | Error e -> Some (Error e)
 ;;

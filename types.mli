@@ -55,3 +55,8 @@ type command =
   | Scroll of address * int
   | LineNumber of address
   | Goto of address
+
+type suffix =
+  | PrintS
+  | ListS
+  | NumberS
