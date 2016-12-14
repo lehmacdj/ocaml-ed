@@ -282,8 +282,7 @@ let parse_first line =
  *)
 let parse_line state line =
   let open Result.Monad_infix in
-  state >>= fun state ->
-    match state with
+  state >>= function
     | Empty ->
         parse_first line
     | Partial (Append (a, lines), suf) ->
