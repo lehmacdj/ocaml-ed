@@ -2,10 +2,13 @@ type filename =
   | File of string (** either a file *)
   | Command of string (** a command to read / write from *)
   | ThisFile (** nothing; the current file *)
+;;
 
 type text = string list
+;;
 
 type regex = string
+;;
 
 type address =
   | FirstLine (** the first line in the buffer *)
@@ -15,11 +18,13 @@ type address =
   | ForwardSearch of regex (** the first line from the current line that matches the regex *)
   | BackwardSearch of regex (** the previous line from the current line that matches the regex *)
   | Offset of address * int (** offset from specified address *)
+;;
 
 (**
  * A pair of address used as a parameter type for some methods
  *)
 type address_range = address * address
+;;
 
 (**
  * The first two addresses of any command are the address to execute the
@@ -55,9 +60,12 @@ type command =
   | Scroll of address * int
   | LineNumber of address
   | Goto of address
+;;
 
+(** Type of the suffix of a command *)
 type suffix =
   | PrintS
   | ListS
   | NumberS
   | NoSuffix
+;;
