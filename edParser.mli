@@ -23,4 +23,4 @@ val parse_line: t -> string -> t
  * turns a unfinished command into a completed command. If the command has not
  * yet been completely parsed returns None.
  *)
-val finish: t -> (EdCommand.t, parse_error) Result.t option
+val finish: t -> (EdCommand.t * suffix, parse_error) Result.t option

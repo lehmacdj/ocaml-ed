@@ -3,6 +3,7 @@
  *)
 
 open Core.Std
+open Types
 
 (**
  * The type that the editor returns
@@ -33,7 +34,7 @@ val running: t -> bool
 (**
  * Execute a command on this editor and return the new state of the editor.
  *)
-val execute: t -> EdCommand.t -> t * editor_response
+val execute: t -> command:EdCommand.t -> suffix:suffix -> t * editor_response
 
 (**
  * Return the editor response for a parse error current state of the editor.

@@ -40,8 +40,8 @@ let rec run editor =
   (* apply a command *)
   let (editor, response) =
     match parse_command () with
-    | Ok command ->
-        E.execute editor command
+    | Ok (c, s) ->
+        E.execute editor ~command:c ~suffix:s
     | Error e ->
         (editor, E.response editor ~parse_error:e) in
 

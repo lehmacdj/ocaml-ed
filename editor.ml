@@ -83,7 +83,7 @@ let default_response editor =
 (**
  * execute [command] on [editor] and return the new editor
  *)
-let execute editor command =
+let execute editor ~command ~suffix =
   printf "~parsed: %s\n" @@ EdCommand.to_string command;
   print_flush ();
   match command with

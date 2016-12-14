@@ -336,6 +336,6 @@ let parse_line state line =
 let finish = function
   | Ok Empty
   | Ok Partial _ -> None
-  | Ok Complete (c, _) -> Some (Ok c)
+  | Ok Complete (c, s) -> Some (Ok (c, s))
   | Error e -> Some (Error e)
 ;;
