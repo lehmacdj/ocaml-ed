@@ -134,8 +134,8 @@ let print editor (start, primary) =
   let open Result.Monad_infix in
   int_of_address editor start >>= fun start ->
   int_of_address editor primary >>= fun primary ->
-  FileBuffer.lines editor.buffer ~range:(start, primary) >>= fun buffer ->
-  let text = List.fold_left ~init:"" ~f:(fun t e -> t ^ "\n" ^ e) buffer in
+  FileBuffer.lines editor.buffer ~range:(start, primary) >>= fun lines ->
+  let text = String.concat ~sep:"\n" lines in
   Result.return (editor, Text text)
 ;;
 
