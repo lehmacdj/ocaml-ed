@@ -280,18 +280,18 @@ let parse_line state line =
         parse_first line
     | Partial (Append (a, lines), suf) ->
         if line = "."
-        then Ok (Complete (Append (a, lines), suf))
+        then Ok (Complete (Append (a, List.rev lines), suf))
         else Ok (Partial (Append (a, line :: lines), suf))
     | Partial (Change (r, lines), suf) ->
         if line = "."
-        then Ok (Complete (Change (r, lines), suf))
+        then Ok (Complete (Change (r, List.rev lines), suf))
         else Ok (Partial (Change (r, line :: lines), suf))
     | Partial (Insert (a, lines), suf) ->
         if line = "."
-        then Ok (Complete (Insert (a, lines), suf))
+        then Ok (Complete (Insert (a, List.rev lines), suf))
         else Ok (Partial (Insert (a, line :: lines), suf))
 
-        (* Parse the further global command *)
+    (* Parse the further global command *)
     | Partial (Global _, _) ->
         Error Unimplemented
     | Partial (ConverseGlobal _, _) ->
