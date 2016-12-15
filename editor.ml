@@ -130,12 +130,13 @@ let delete editor (start, primary) =
   Nothing)
 ;;
 
-let print editor (start, primary) =
+let print editor ~decorator (start, primary) =
   let open Result.Monad_infix in
   int_of_address editor start >>= fun start ->
   int_of_address editor primary >>= fun primary ->
   FileBuffer.lines editor.buffer ~range:(start, primary) >>= fun lines ->
-  let text = String.concat ~sep:"\n" lines in
+  let decorated = List.mapi ~f:(fun i -> decorator (i + start)) lines in
+  let text = String.concat ~sep:"\n" decorated in
   Result.return (editor, Text text)
 ;;
 
@@ -186,15 +187,21 @@ let execute editor ~command ~suffix =
   | QuitForce ->
       let editor = {editor with running = false} in
       (editor, Nothing)
-  | Print (start, primary) -> return @@ print editor (start, primary)
+  | Print range ->
+      return @@ print editor
+        ~decorator:Fn.(const id)
+        range
+  | Number range ->
+      return @@ print editor
+        ~decorator:(fun ln line -> (string_of_int ln) ^ "\t" ^ line)
+        range
   | SetFile filename -> return @@ set_file editor filename
 
   | Global _
   | GlobalInteractive _
   | Join _
-  | List _
   | Move _
-  | Number _
+  | List _
   | PromptToggle
   | Substitute _
   | Transfer _
