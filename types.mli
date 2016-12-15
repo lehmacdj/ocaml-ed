@@ -1,3 +1,5 @@
+(* Public types and constructors that need to be available in many places *)
+
 type filename =
   | File of string (** either a file *)
   | Command of string (** a command to read / write from *)
