@@ -75,7 +75,6 @@ let rec run editor =
 
   if E.running editor
   then run editor
-  else ()
 ;;
 
 let () = Command.run @@ Command.basic

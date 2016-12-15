@@ -5,7 +5,7 @@
 CC=ocamlbuild
 FLAGS+=-use-ocamlfind
 FLAGS+=-tag thread -tag debug -tag bin_annot -tag short_paths
-FLAGS+=-cflags "-w A-33-40-41-42-43-34-44-45"
+FLAGS+=-cflags "-w A-33-40-41-42-43-34-44-45-48"
 FLAGS+=-cflags -strict-sequence
 
 PACKAGES=-package core -package re2
