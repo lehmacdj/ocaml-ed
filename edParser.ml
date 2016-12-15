@@ -8,20 +8,12 @@ type command_state =
   | Complete of EdCommand.t * suffix (* a command that has a suffix *)
 ;;
 
+(* represents an error that occurred while parsing *)
 type parse_error =
   | InvalidAddress
   | InvalidCommandSuffix
   | Unimplemented
   | InvalidFileName
-;;
-
-type t = (command_state, parse_error) Result.t
-;;
-
-(*
- * the initial parse state
- *)
-let initial = Ok Empty
 ;;
 
 let string_of_parse_error = function
@@ -31,9 +23,11 @@ let string_of_parse_error = function
   | InvalidFileName      -> "invalid filename"
 ;;
 
-let error_to_none = function
-  | Ok x -> Some x
-  | Error _ -> None
+type t = (command_state, parse_error) Result.t
+;;
+
+(* the initial parse state *)
+let initial = Ok Empty
 ;;
 
 (** lex the first line of a command *)
@@ -52,7 +46,7 @@ let lex_first line =
                      ^ "(" ^ args_regex    ^ ")") in
   let regex = Re2.create_exn regex_str in
   let matches = Re2.find_submatches regex line
-    |> error_to_none
+    |> Result.ok
     |> Option.value ~default:(Array.create ~len:5 None) in
 
   (* get the necessary indices *)
