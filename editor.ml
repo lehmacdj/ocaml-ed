@@ -78,49 +78,99 @@ let default_response editor =
   | Some _                     -> EdError None
 ;;
 
+let append editor (addr, text) =
+  let open Result.Monad_infix in
+  int_of_address editor addr >>= fun addr ->
+  FileBuffer.insert editor.buffer ~at:addr ~lines:text >>= fun buffer ->
+  Result.return ({ editor with
+    buffer = buffer;
+    line = addr;
+    error = None;
+    running = true;
+  },
+  Nothing)
+;;
+
+let insert editor (addr, text) =
+  let open Result.Monad_infix in
+  int_of_address editor addr >>= fun addr ->
+  FileBuffer.insert editor.buffer ~at:(addr - 1) ~lines:text >>= fun buffer ->
+  Result.return ({ editor with
+    buffer = buffer;
+    line = addr;
+    error = None;
+  },
+  Nothing)
+;;
+
+let change editor ((start, primary), text) =
+  let open Result.Monad_infix in
+  int_of_address editor start >>= fun start ->
+  int_of_address editor primary >>= fun primary ->
+  FileBuffer.delete editor.buffer ~range:(start, primary) >>= fun buffer ->
+  FileBuffer.insert buffer ~at:start ~lines:text >>= fun buffer ->
+  Result.return ({ editor with
+    buffer = buffer;
+    line = start;
+    error = None;
+  },
+  Nothing)
+;;
+
+let delete editor (start, primary) =
+  let open Result.Monad_infix in
+  int_of_address editor start >>= fun start ->
+  int_of_address editor primary >>= fun primary ->
+  FileBuffer.delete ~range:(start, primary) editor.buffer >>= fun buffer ->
+  Result.return ({ editor with
+    buffer = buffer;
+    line = start;
+    error = None;
+  },
+  Nothing)
+;;
+
+let print editor (start, primary) =
+  let open Result.Monad_infix in
+  int_of_address editor start >>= fun start ->
+  int_of_address editor primary >>= fun primary ->
+  FileBuffer.lines editor.buffer ~range:(start, primary) >>= fun buffer ->
+  let text = List.fold_left ~init:"" ~f:(fun t e -> t ^ "\n" ^ e) buffer in
+  Result.return (editor, Text text)
+;;
+
+let set_file editor filename =
+  let open Result.Monad_infix in
+  (match filename with
+  | File name ->
+      FileBuffer.set_name editor.buffer name >>= fun buffer ->
+      Result.return ({editor with buffer = buffer}, PathName name)
+  | ThisFile ->
+      (match FileBuffer.name editor.buffer with
+      | Some name -> Result.return (editor, PathName name)
+      | None -> Result.return (editor, EdError (Some "no current filename")))
+  | Command _ ->
+      Result.return (editor, EdError (Some "invalid redirection")))
+;;
+
+let default_action editor command =
+  Result.return ({editor with error = Some (EdCommand.to_string command)},
+  default_response editor)
+;;
+
 let execute editor ~command ~suffix =
   let open Result.Monad_infix in
+  let return = function
+    | Ok (e, msg) -> (e, msg)
+    | Error be ->
+        let ed = {editor with error = Some (FileBuffer.string_of_buffer_error be)} in
+        (ed, default_response editor) in
   match command with
-  | Append (addr, text) ->
-      let addr = int_of_address editor addr in
-      FileBuffer.insert editor.buffer ~at:addr ~lines:text >>= fun buf ->
-      ({ editor with
-        buffer = buffer;
-        line = addr;
-        error = None;
-        running = true;
-      },
-      Nothing)
-  | Insert (addr, text) ->
-      let addr = int_of_address editor addr in
-      ({ editor with
-        buffer = FileBuffer.insert editor.buffer ~at:(addr - 1) ~lines:text;
-        line = addr;
-        error = None;
-      },
-      Nothing)
-  | Change ((start, primary), text) ->
-      let start = int_of_address editor start in
-      let primary = int_of_address editor primary in
-      ({ editor with
-        buffer = editor.buffer
-          |> FileBuffer.delete ~range:(start, primary)
-          |> FileBuffer.insert ~at:start ~lines:text;
-        line = start;
-        error = None;
-      },
-      Nothing)
-  | Delete (start, primary) ->
-      let start = int_of_address editor start in
-      let primary = int_of_address editor primary in
-      ({ editor with
-        buffer = FileBuffer.delete ~range:(start, primary) editor.buffer;
-        line = start;
-        error = None;
-      },
-      Nothing)
-  | Help ->
-      (editor, EdError editor.error)
+  | Append (addr, text) -> return @@ append editor (addr, text)
+  | Insert (addr, text) -> return @@ insert editor (addr, text)
+  | Change ((start, primary), text) -> return @@ change editor ((start, primary), text)
+  | Delete (start, primary) -> return @@ delete editor (start, primary)
+  | Help -> (editor, EdError editor.error)
   | HelpToggle ->
       let editor = {editor with verbose = not editor.verbose} in
       (editor, default_response editor)
@@ -128,7 +178,7 @@ let execute editor ~command ~suffix =
   | EditForce filename ->
       let file = (match filename with
           | File name -> FileBuffer.make (Some name)
-          | Command _ -> failwith "failure"
+          | Command _ -> failwith "editing commands is unimplimented"
           | ThisFile -> editor.buffer) in
       let editor = {editor with buffer = file} in
       (editor, default_response editor)
@@ -136,26 +186,8 @@ let execute editor ~command ~suffix =
   | QuitForce ->
       let editor = {editor with running = false} in
       (editor, Nothing)
-  | Print (start, primary) ->
-      let start = int_of_address editor start in
-      let primary = int_of_address editor primary in
-      let text = List.fold_left
-        ~init:""
-        ~f:(fun t e -> t ^ "\n" ^ e)
-        (FileBuffer.lines editor.buffer
-          ~range:(start, primary)) in
-      (editor, Text text)
-  | SetFile filename ->
-      (match filename with
-      | File name ->
-          ({editor with buffer = FileBuffer.set_name editor.buffer name},
-          PathName name)
-      | ThisFile ->
-          (match FileBuffer.name editor.buffer with
-          | Some name -> (editor, PathName name)
-          | None -> (editor, EdError (Some "no current filename")))
-      | Command _ ->
-          (editor, EdError (Some "invalid redirection")))
+  | Print (start, primary) -> return @@ print editor (start, primary)
+  | SetFile filename -> return @@ set_file editor filename
 
   | Global _
   | GlobalInteractive _
@@ -173,10 +205,9 @@ let execute editor ~command ~suffix =
   | Scroll _
   | LineNumber _
   | Read _
-  | Goto _ ->
-      ({editor with error = Some (EdCommand.to_string command)},
-      default_response editor)
+  | Goto _ -> return @@ default_action editor command
 ;;
+
 
 let is_verbose editor = editor.verbose
 ;;

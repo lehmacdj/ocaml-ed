@@ -6,13 +6,15 @@ open Re2.Std
 open Types
 
 type buffer_error =
-  | InvalidAddress
+  | OutOfBounds
   | NoMatchFound
+  | InvalidFilename
 ;;
 
-let string_of_file_buffer = function
-  | InvalidAddress -> "invalid address"
+let string_of_buffer_error = function
+  | OutOfBounds -> "invalid address"
   | NoMatchFound -> "no match"
+  | InvalidFilename -> "invalid filename"
 ;;
 
 (**
@@ -40,7 +42,7 @@ let make = function
 ;;
 
 let set_name (_, text, count) name =
-  (Some name, text, count)
+  Result.return (Some name, text, count)
 ;;
 
 let name (name, _, _) =
@@ -50,13 +52,12 @@ let name (name, _, _) =
 (** asserts that n is inside the bounds of the buffer of [size] *)
 let in_bounds n size =
   if n < size || n <= 0
-  then
-    (Format.printf "Expected n within [%d]" size;
-    assert false)
+  then Error OutOfBounds
+  else Ok ()
 ;;
 
 let get (_, text, _) line =
-  List.nth text line
+  Result.of_option ~error:OutOfBounds @@ List.nth text line
 ;;
 
 let line_count (_, _, count) = count
@@ -64,9 +65,10 @@ let line_count (_, _, count) = count
 
 (* return the lines in range from buffer *)
 let lines (_, text, size) ~range:(start, stop) =
-  in_bounds start size;
-  in_bounds stop size;
-  List.filter_mapi text
+  let open Result.Monad_infix in
+  in_bounds start size >>= fun () ->
+  in_bounds stop size >>= fun () ->
+  Result.return @@ List.filter_mapi text
     ~f:(fun i e ->
       if i >= start - 1 && i <= stop - 1
       then Some e
@@ -76,21 +78,25 @@ let lines (_, text, size) ~range:(start, stop) =
 let write (name, text, _) ~range:_ =
   match name with
   | None ->
-      failwith "filename is undefined"
+      Error InvalidFilename
   | Some name ->
-      Out_channel.write_lines name text
+      Ok (Out_channel.write_lines name text)
 ;;
 
-let delete (name, text, count) ~range:(start, stop) =
-  let text = lines (name, text, count) ~range:(start, stop) in
-  let count = count - stop + start in
-  (name, text, count)
+let delete (name, text, size) ~range:(start, stop) =
+  let open Result.Monad_infix in
+  (* FIXME: logic doesn't look good here *)
+  lines (name, text, size) ~range:(start, stop) >>= fun text ->
+  let size = size - stop + start in
+  Result.return (name, text, size)
 ;;
 
-let insert (name, text, count) ~at:index ~lines =
+let insert (name, text, size) ~at:index ~lines =
+  let open Result.Monad_infix in
+  in_bounds index size >>= fun () ->
   let front = List.take text index in
   let back = List.drop text index in
-  (name, front @ lines @ back, count)
+  Result.return (name, front @ lines @ back, size)
 ;;
 
 (**
@@ -120,7 +126,7 @@ let find (_, lines, count) current regex ~direction =
         (* Line numbers are the line count - the line number when reversed *)
         cycle (count - current) (List.rev lines) in
   match List.findi search_list ~f:(fun _ -> Re2.matches re) with
-  | None -> failwith "not found in the buffer"
+  | None -> Error NoMatchFound
   (* recompute the correct index for that line *)
-  | Some (i, _) -> i + current
+  | Some (i, _) -> Ok (i + current)
 ;;
