@@ -1,5 +1,6 @@
 (*
  * Implementation of editor.mli
+ * This really could use a facelift to a state Monad
  *)
 open Core.Std
 open Re2.Std
@@ -214,7 +215,6 @@ let execute editor ~command ~suffix =
   | Read _
   | Goto _ -> return @@ default_action editor command
 ;;
-
 
 let is_verbose editor = editor.verbose
 ;;
