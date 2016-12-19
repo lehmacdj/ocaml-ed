@@ -160,6 +160,18 @@ let default_action editor command =
   default_response editor)
 ;;
 
+let translate l ~assoc =
+  List.bind l (fun e ->
+    Option.value (List.Assoc.find assoc e) ~default:(List.return e))
+;;
+
+(* The Characters defined in Table 5-1, Escape Sequences and Associated Actions:
+                        (   '\\',    '\a',    '\b',    '\f',    '\r',    '\t',   '\v' ) *)
+let list_chars        = [ '\012';  '\007';  '\010';  '\014';  '\000';  '\000';  '\000']
+let list_char_strings = ["\\012"; "\\007"; "\\010"; "\\014"; "\\000"; "\\000"; "\\000"]
+let list_map = List.zip_exn list_chars (List.map ~f:String.to_list list_char_strings)
+;;
+
 let execute editor ~command ~suffix =
   let open Result.Monad_infix in
   let return = function
@@ -192,6 +204,12 @@ let execute editor ~command ~suffix =
       return @@ print editor
         ~decorator:Fn.(const id)
         range
+  | List range ->
+      let (&) = Fn.compose in
+      return @@ print editor
+        ~decorator:(const
+          (String.of_char_list & translate ~assoc:list_map & String.to_list))
+        range
   | Number range ->
       return @@ print editor
         ~decorator:(fun ln line -> (string_of_int ln) ^ "\t" ^ line)
@@ -202,7 +220,6 @@ let execute editor ~command ~suffix =
   | GlobalInteractive _
   | Join _
   | Move _
-  | List _
   | PromptToggle
   | Substitute _
   | Transfer _
