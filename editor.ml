@@ -79,6 +79,8 @@ let default_response editor =
   | Some _                     -> EdError None
 ;;
 
+(* in return consider factoring out the move and the resetting of the error
+ * into separate functions *)
 let append editor (addr, text) =
   let open Result.Monad_infix in
   int_of_address editor addr >>= fun addr ->
@@ -87,7 +89,6 @@ let append editor (addr, text) =
     buffer = buffer;
     line = addr;
     error = None;
-    running = true;
   },
   Nothing)
 ;;
@@ -143,16 +144,16 @@ let print editor ~decorator (start, primary) =
 
 let set_file editor filename =
   let open Result.Monad_infix in
-  (match filename with
+  match filename with
   | File name ->
       FileBuffer.set_name editor.buffer name >>= fun buffer ->
-      Result.return ({editor with buffer = buffer}, PathName name)
+        Result.return ({editor with buffer = buffer}, PathName name)
   | ThisFile ->
       (match FileBuffer.name editor.buffer with
       | Some name -> Result.return (editor, PathName name)
       | None -> Result.return (editor, EdError (Some "no current filename")))
-  | Command _ ->
-      Result.return (editor, EdError (Some "invalid redirection")))
+      | Command _ ->
+          Result.return (editor, EdError (Some "invalid redirection"))
 ;;
 
 let default_action editor command =
@@ -163,6 +164,27 @@ let default_action editor command =
 let translate l ~assoc =
   List.bind l (fun e ->
     Option.value (List.Assoc.find assoc e) ~default:(List.return e))
+;;
+
+let move editor (start, primary) target =
+  let open Result.Monad_infix in
+  int_of_address editor start >>= fun start ->
+  int_of_address editor primary >>= fun primary ->
+  int_of_address editor target >>= fun target ->
+  FileBuffer.lines editor.buffer ~range:(start, primary) >>= fun lines ->
+  FileBuffer.delete editor.buffer ~range:(start, primary) >>= fun buffer ->
+  FileBuffer.insert buffer ~lines:lines ~at:target >>= fun buffer ->
+  Result.return ({editor with buffer = buffer}, Nothing)
+;;
+
+let copy editor (start, primary) target =
+  let open Result.Monad_infix in
+  int_of_address editor start >>= fun start ->
+  int_of_address editor primary >>= fun primary ->
+  int_of_address editor target >>= fun target ->
+  FileBuffer.lines editor.buffer ~range:(start, primary) >>= fun lines ->
+  FileBuffer.insert editor.buffer ~lines:lines ~at:target >>= fun buffer ->
+  Result.return ({editor with buffer = buffer}, Nothing)
 ;;
 
 (* The Characters defined in Table 5-1, Escape Sequences and Associated Actions:
@@ -177,14 +199,19 @@ let execute editor ~command ~suffix =
   let return = function
     | Ok (e, msg) -> (e, msg)
     | Error be ->
-        let ed = {editor with error = Some (FileBuffer.string_of_buffer_error be)} in
-        (ed, default_response editor) in
+        let editor = {editor with error =
+          Some (FileBuffer.string_of_buffer_error be)} in
+        (editor, default_response editor) in
   match command with
   | Append (addr, text) -> return @@ append editor (addr, text)
   | Insert (addr, text) -> return @@ insert editor (addr, text)
-  | Change ((start, primary), text) -> return @@ change editor ((start, primary), text)
-  | Delete (start, primary) -> return @@ delete editor (start, primary)
-  | Help -> (editor, EdError editor.error)
+  | Change (range, text) -> return @@ change editor (range, text)
+  | Delete range -> return @@ delete editor range
+  (* | Join range -> return @@ join editor range *)
+  | Move (range, target) -> return @@ move editor range target
+  | Transfer (range, target) -> return @@ copy editor range target
+  | Help ->
+      (editor, EdError editor.error)
   | HelpToggle ->
       let editor = {editor with verbose = not editor.verbose} in
       (editor, default_response editor)
@@ -216,13 +243,11 @@ let execute editor ~command ~suffix =
         range
   | SetFile filename -> return @@ set_file editor filename
 
+  | Join _
   | Global _
   | GlobalInteractive _
-  | Join _
-  | Move _
   | PromptToggle
   | Substitute _
-  | Transfer _
   | ConverseGlobal _
   | ConverseGlobalInteractive _
   | Write _
