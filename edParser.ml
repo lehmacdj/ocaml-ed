@@ -229,9 +229,16 @@ let parse_first line =
       Ok (Complete (Read (addr, filename), NoSuffix)))
 
   (* 3 address *)
-  (* TODO: parse these so that they work properly *)
-  | "m"
-  | "t"
+  | "m" ->
+      (* TODO: separately handle suffix, which these commands also support *)
+      range_or_current >>= fun range ->
+      parse_address (Option.return args) ~default:Current >>= fun target ->
+      Ok (Complete (Move (range, target), NoSuffix))
+  | "t" ->
+      (* TODO: separately handle suffix, which these commands also support *)
+      range_or_current >>= fun range ->
+      parse_address (Option.return args) ~default:Current >>= fun target ->
+      Ok (Complete (Move (range, target), NoSuffix))
 
   (* help commands *)
   | "h" ->
