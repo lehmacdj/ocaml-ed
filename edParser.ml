@@ -229,6 +229,7 @@ let parse_first line =
       Ok (Complete (Read (addr, filename), NoSuffix)))
 
   (* 3 address *)
+  (* TODO: parse these so that they work properly *)
   | "m"
   | "t"
 
