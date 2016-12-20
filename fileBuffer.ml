@@ -50,12 +50,15 @@ let name (name, _, _) =
 ;;
 
 (** asserts that n is inside the bounds of the buffer of [size] *)
+(* FIXME: won't allow any line address to be accepted when inserting new lines *)
+(* TODO: split into 2 methods *)
 let in_bounds n size =
-  if n < size || n <= 0
+  if n > size || n <= 0
   then Error OutOfBounds
   else Ok ()
 ;;
 
+(* DEPRECATED! *)
 let get (_, text, _) line =
   Result.of_option ~error:OutOfBounds @@ List.nth text line
 ;;
@@ -63,6 +66,7 @@ let get (_, text, _) line =
 let line_count (_, _, count) = count
 ;;
 
+(* Will eventually rename `get` *)
 (* return the lines in range from buffer *)
 let lines (_, text, size) ~range:(start, stop) =
   let open Result.Monad_infix in
@@ -88,15 +92,16 @@ let delete (name, text, size) ~range:(start, stop) =
   (* FIXME: logic doesn't look good here *)
   lines (name, text, size) ~range:(start, stop) >>= fun text ->
   let size = size - stop + start in
-  Result.return (name, text, size)
+  Result.return (name, text, size - (stop - start))
 ;;
 
+(* TODO: need to sanitize literal new lines (alternatively do this when parsing *)
 let insert (name, text, size) ~at:index ~lines =
   let open Result.Monad_infix in
   in_bounds index size >>= fun () ->
   let front = List.take text index in
   let back = List.drop text index in
-  Result.return (name, front @ lines @ back, size)
+  Result.return (name, front @ lines @ back, size + List.length lines)
 ;;
 
 (**
