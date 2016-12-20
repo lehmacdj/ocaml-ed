@@ -186,7 +186,6 @@ let parse_first line =
       suffix_completed (Join range))
 
   (* printing commands *)
-  (* FIXME: don't work for single numbers *)
   | "l" ->
       range_or_current >>= (fun range ->
       suffix_completed (List range))
