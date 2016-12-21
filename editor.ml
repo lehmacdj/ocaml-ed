@@ -166,18 +166,20 @@ let translate l ~assoc =
     Option.value (List.Assoc.find assoc e) ~default:(List.return e))
 ;;
 
+(* doesn't work because of simplictic way handling is done; something more
+ * complex than insert and then delete is needed *)
 let move editor (start, primary) target =
   let open Result.Monad_infix in
   int_of_address editor start >>= fun start ->
   int_of_address editor primary >>= fun primary ->
   int_of_address editor target >>= fun target ->
   FileBuffer.lines editor.buffer ~range:(start, primary) >>= fun lines ->
-  FileBuffer.delete editor.buffer ~range:(start, primary) >>= fun buffer ->
-  FileBuffer.insert buffer ~lines:lines ~at:target >>= fun buffer ->
+  FileBuffer.insert editor.buffer ~lines:lines ~at:target >>= fun buffer ->
+  FileBuffer.delete buffer ~range:(start, primary) >>= fun buffer ->
   Result.return ({editor with buffer = buffer}, Nothing)
 ;;
 
-let copy editor (start, primary) target =
+let transfer editor (start, primary) target =
   let open Result.Monad_infix in
   int_of_address editor start >>= fun start ->
   int_of_address editor primary >>= fun primary ->
@@ -209,7 +211,7 @@ let execute editor ~command ~suffix =
   | Delete range -> return @@ delete editor range
   (* | Join range -> return @@ join editor range *)
   | Move (range, target) -> return @@ move editor range target
-  | Transfer (range, target) -> return @@ copy editor range target
+  | Transfer (range, target) -> return @@ transfer editor range target
   | Help ->
       (editor, EdError editor.error)
   | HelpToggle ->

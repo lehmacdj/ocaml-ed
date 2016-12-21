@@ -89,16 +89,16 @@ let write (name, text, _) ~range:_ =
 
 let delete (name, text, size) ~range:(start, stop) =
   let open Result.Monad_infix in
-  (* FIXME: logic doesn't look good here *)
-  lines (name, text, size) ~range:(start, stop) >>= fun text ->
-  let size = size - stop + start in
-  Result.return (name, text, size - (stop - start))
+  lines (name, text, size) ~range:(stop + 1, size) >>= fun front ->
+  lines (name, text, size) ~range:(1, start - 1) >>= fun back ->
+  let size = size - (stop + 1 - start) in
+  Result.return (name, front @ back, size)
 ;;
 
 (* TODO: need to sanitize literal new lines (alternatively do this when parsing *)
 let insert (name, text, size) ~at:index ~lines =
   let open Result.Monad_infix in
-  in_bounds index size >>= fun () ->
+  in_bounds index (size + 1) >>= fun () ->
   let front = List.take text index in
   let back = List.drop text index in
   Result.return (name, front @ lines @ back, size + List.length lines)

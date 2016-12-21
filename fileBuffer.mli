@@ -58,6 +58,7 @@ val delete: t -> range:(int * int) -> (t, buffer_error) Result.t
 
 (**
  * insert a line to the buffer at the specified address
+ * line is inserted before the line that is specified
  *)
 val insert: t -> at:int -> lines:text -> (t, buffer_error) Result.t
 

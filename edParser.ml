@@ -237,7 +237,7 @@ let parse_first line =
       (* TODO: separately handle suffix, which these commands also support *)
       range_or_current >>= fun range ->
       parse_address (Option.return args) ~default:Current >>= fun target ->
-      Ok (Complete (Move (range, target), NoSuffix))
+      Ok (Complete (Transfer (range, target), NoSuffix))
 
   (* help commands *)
   | "h" ->
